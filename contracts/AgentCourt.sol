@@ -20,8 +20,12 @@ contract AgentCourt {
 
     address public judge;
     uint256 public minDeposit;
-    uint256 public judgeFee;
     uint256 public serviceFeeRate;  // basis points (100 = 1%)
+
+    // Tiered judge fees: $0.05, $0.10, $0.20 (in wei at deploy time)
+    uint256[3] public judgeFees;
+    // Track dispute count per agent for tier escalation
+    mapping(address => uint8) public disputeLossCount;
 
     IIdentityRegistry public identityRegistry;
     IReputationRegistry public reputationRegistry;
@@ -92,6 +96,8 @@ contract AgentCourt {
         address plaintiff;
         address defendant;
         uint256 stake;
+        uint256 judgeFee;         // fee for this dispute's tier
+        uint8 tier;               // 0=district, 1=appeals, 2=supreme
         bytes32 plaintiffEvidence;
         bytes32 defendantEvidence;
         bool resolved;
@@ -136,7 +142,7 @@ contract AgentCourt {
     constructor(
         address _judge,
         uint256 _minDeposit,
-        uint256 _judgeFee,
+        uint256[3] memory _judgeFees,
         uint256 _serviceFeeRate,
         address _identityRegistry,
         address _reputationRegistry,
@@ -144,7 +150,7 @@ contract AgentCourt {
     ) {
         judge = _judge;
         minDeposit = _minDeposit;
-        judgeFee = _judgeFee;
+        judgeFees = _judgeFees;  // [district, appeals, supreme]
         serviceFeeRate = _serviceFeeRate;
         identityRegistry = IIdentityRegistry(_identityRegistry);
         reputationRegistry = IReputationRegistry(_reputationRegistry);
@@ -311,12 +317,28 @@ contract AgentCourt {
 
     // ===== DISPUTES =====
 
-    /// File a dispute on a fulfilled transaction.
+    /// Get the current judge fee tier for an agent based on their loss count.
+    function getJudgeFee(address agent) public view returns (uint256 fee, uint8 tier) {
+        uint8 losses = disputeLossCount[agent];
+        if (losses >= 2) {
+            return (judgeFees[2], 2);  // supreme: $0.20
+        } else if (losses >= 1) {
+            return (judgeFees[1], 1);  // appeals: $0.10
+        } else {
+            return (judgeFees[0], 0);  // district: $0.05
+        }
+    }
+
+    /// File a dispute on a fulfilled transaction. Fee tier based on filer's loss history.
     function fileDispute(
         uint256 txId,
         uint256 stake,
         bytes32 evidence
-    ) external hasBalance(stake + judgeFee) returns (uint256) {
+    ) external returns (uint256) {
+        // Determine fee tier for the filer
+        (uint256 fee, uint8 tier) = getJudgeFee(msg.sender);
+        require(balances[msg.sender] >= stake + fee, "Insufficient balance for stake + judge fee");
+
         Transaction storage t = transactions[txId];
         require(t.status == TxStatus.Fulfilled, "Can only dispute fulfilled txns");
         require(msg.sender == t.consumer || msg.sender == t.provider, "Not party to txn");
@@ -324,8 +346,8 @@ contract AgentCourt {
         address defendant = msg.sender == t.consumer ? t.provider : t.consumer;
         require(balances[defendant] >= stake, "Defendant underfunded");
 
-        // Freeze stakes
-        balances[msg.sender] -= (stake + judgeFee);
+        // Freeze stakes + judge fee
+        balances[msg.sender] -= (stake + fee);
         balances[defendant] -= stake;
 
         t.status = TxStatus.Disputed;
@@ -336,6 +358,8 @@ contract AgentCourt {
             plaintiff: msg.sender,
             defendant: defendant,
             stake: stake,
+            judgeFee: fee,
+            tier: tier,
             plaintiffEvidence: evidence,
             defendantEvidence: bytes32(0),
             resolved: false,
@@ -359,6 +383,7 @@ contract AgentCourt {
     }
 
     /// Judge submits ruling. Contract enforces payout.
+    /// Judge fee paid from the frozen amount. Loser's loss count escalates their future tier.
     function submitRuling(uint256 disputeId, address winner) external onlyJudge {
         Dispute storage d = disputes[disputeId];
         require(!d.resolved, "Already resolved");
@@ -372,16 +397,20 @@ contract AgentCourt {
 
         // Winner gets both stakes
         balances[winner] += totalStake;
-        // Judge gets fee
-        balances[judge] += judgeFee;
+        // Judge gets the tiered fee (already deducted from plaintiff)
+        balances[judge] += d.judgeFee;
+
+        // Escalate loser's tier for next dispute
+        if (disputeLossCount[loser] < 3) {
+            disputeLossCount[loser]++;
+        }
+        // 3 losses = effectively banned (tier 2 fee is max, balance likely drained)
 
         // Also release the locked transaction payment
         Transaction storage t = transactions[d.transactionId];
         if (winner == t.consumer) {
-            // Consumer wins — refund their payment
             balances[t.consumer] += t.payment;
         } else {
-            // Provider wins — pay them
             uint256 fee = (t.payment * serviceFeeRate) / 10000;
             balances[t.provider] += t.payment - fee;
             balances[judge] += fee;

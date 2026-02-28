@@ -13,9 +13,9 @@ import re
 from dataclasses import dataclass, field
 
 COURT_TIERS = [
-    {"name": "district",  "model": "glm-4-plus",               "fee_wei": 500000000000000},   # 0.0005 BTC
-    {"name": "appeals",   "model": "anthropic/claude-sonnet-4", "fee_wei": 2000000000000000},  # 0.002 BTC
-    {"name": "supreme",   "model": "anthropic/claude-opus-4",   "fee_wei": 5000000000000000},  # 0.005 BTC
+    {"name": "district",  "model": "glm-4-plus",               "fee_usd": 0.05},  # ~$0.05
+    {"name": "appeals",   "model": "anthropic/claude-sonnet-4", "fee_usd": 0.10},  # ~$0.10
+    {"name": "supreme",   "model": "anthropic/claude-opus-4",   "fee_usd": 0.20},  # ~$0.20
 ]
 MAX_DISPUTE_LEVEL = len(COURT_TIERS) - 1
 

@@ -216,40 +216,81 @@ async def submit_transaction_data(data: TransactionData):
 
 @app.post("/rule")
 async def trigger_ruling(req: RuleRequest):
-    """Trigger the AI judge to review evidence and submit ruling on-chain."""
+    """Trigger the AI judge to review evidence and submit ruling on-chain.
+
+    Verifies on-chain that:
+    1. Dispute exists and is unresolved
+    2. Judge fee has been paid (frozen in contract)
+    3. Selects judge tier based on on-chain dispute tier
+    Then spawns appropriate judge instance and submits ruling.
+    """
     if not contract or not judge_account:
         raise HTTPException(503, "Contract or judge key not configured")
 
-    # Fetch dispute from chain
+    # Fetch dispute from chain — this IS the payment verification
+    # If fileDispute() succeeded, the fee is already frozen in the contract
     try:
         d = contract.functions.getDispute(req.dispute_id).call()
     except Exception:
         raise HTTPException(404, "Dispute not found")
 
-    if d[6]:  # already resolved
+    # Dispute struct: transactionId, plaintiff, defendant, stake, judgeFee, tier,
+    #                 plaintiffEvidence, defendantEvidence, resolved, winner
+    tx_id = d[0]
+    plaintiff = d[1]
+    defendant = d[2]
+    stake = d[3]
+    judge_fee_paid = d[4]
+    tier = d[5]
+    p_evidence = d[6]
+    d_evidence = d[7]
+    resolved = d[8]
+    winner = d[9]
+
+    if resolved:
         raise HTTPException(400, "Dispute already resolved")
+
+    # Verify payment: judge fee must be > 0 (was frozen when dispute filed)
+    if judge_fee_paid == 0:
+        raise HTTPException(402, "No judge fee paid for this dispute")
+
+    # Fetch the underlying transaction for context
+    tx_data = {}
+    try:
+        t = contract.functions.getTransaction(tx_id).call()
+        tx_data = {
+            "service_id": t[0],
+            "consumer": t[1],
+            "provider": t[2],
+            "payment": t[3],
+            "request_hash": "0x" + t[4].hex(),
+            "response_hash": "0x" + t[5].hex(),
+        }
+    except Exception:
+        pass
 
     # Build evidence
     args = arguments.get(req.dispute_id, {})
     evidence = Evidence(
         dispute_id=req.dispute_id,
-        plaintiff=d[0],
-        defendant=d[1],
-        plaintiff_stake=d[2],
-        defendant_stake=d[3],
-        plaintiff_evidence="0x" + d[4].hex(),
-        defendant_evidence="0x" + d[5].hex(),
+        plaintiff=plaintiff,
+        defendant=defendant,
+        plaintiff_stake=stake,
+        defendant_stake=stake,
+        plaintiff_evidence="0x" + p_evidence.hex(),
+        defendant_evidence="0x" + d_evidence.hex(),
         plaintiff_argument=args.get("plaintiff", "(no argument submitted)"),
         defendant_argument=args.get("defendant", "(no argument submitted)"),
-        transaction_data=args.get("transaction_data", {}),
+        transaction_data={**tx_data, **args.get("transaction_data", {})},
     )
 
-    # Get ruling from AI judge
+    # Spawn judge at the correct tier (on-chain tier determines LLM model)
+    # tier 0 = district (GLM-4, cheap), tier 1 = appeals (Sonnet), tier 2 = supreme (Opus)
     prior = prior_rulings_store.get(req.dispute_id, [])
-    ruling = await court.rule(evidence, level=req.level, prior_rulings=prior)
+    ruling = await court.rule(evidence, level=tier, prior_rulings=prior)
 
     # Determine winner address
-    winner_addr = d[0] if ruling.winner == "plaintiff" else d[1]
+    winner_addr = plaintiff if ruling.winner == "plaintiff" else defendant
 
     # Submit ruling on-chain
     try:
@@ -258,7 +299,7 @@ async def trigger_ruling(req: RuleRequest):
             "from": judge_account.address,
             "nonce": nonce,
             "chainId": CHAIN_ID,
-            "gas": 200000,
+            "gas": 300000,
             "gasPrice": w3.eth.gas_price,
         })
         signed = judge_account.sign_transaction(tx)
@@ -271,6 +312,9 @@ async def trigger_ruling(req: RuleRequest):
     # Store ruling
     ruling_dict = ruling.to_dict()
     ruling_dict["winner_address"] = winner_addr
+    ruling_dict["judge_fee_paid"] = judge_fee_paid
+    ruling_dict["tier"] = tier
+    ruling_dict["tier_name"] = ["district", "appeals", "supreme"][min(tier, 2)]
     ruling_dict["on_chain"] = on_chain
     rulings[req.dispute_id] = ruling_dict
 
@@ -280,6 +324,29 @@ async def trigger_ruling(req: RuleRequest):
     prior_rulings_store[req.dispute_id].append(ruling_dict)
 
     return ruling_dict
+
+
+@app.post("/rule/auto")
+async def auto_judge_poll():
+    """Poll for unresolved disputes and auto-judge them.
+    Call this on a cron or let agents trigger /rule manually."""
+    if not contract or not judge_account:
+        raise HTTPException(503, "Not configured")
+
+    count = contract.functions.disputeCount().call()
+    judged = []
+
+    for i in range(count):
+        d = contract.functions.getDispute(i).call()
+        resolved = d[8]
+        if not resolved:
+            try:
+                result = await trigger_ruling(RuleRequest(dispute_id=i))
+                judged.append({"dispute_id": i, "result": result})
+            except Exception as e:
+                judged.append({"dispute_id": i, "error": str(e)})
+
+    return {"judged": len(judged), "results": judged}
 
 
 # --- Serve frontend ---
