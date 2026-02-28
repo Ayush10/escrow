@@ -34,6 +34,12 @@ CONTRACT_ADDR = os.environ.get("CONTRACT_ADDRESS", "")
 JUDGE_PRIVATE_KEY = os.environ.get("JUDGE_PRIVATE_KEY", "")
 CHAIN_ID = int(os.environ.get("CHAIN_ID", "48816"))
 
+# ERC-8004 registries on GOAT Testnet3
+IDENTITY_REGISTRY = "0x556089008Fc0a60cD09390Eca93477ca254A5522"
+REPUTATION_REGISTRY = "0x52B2e79558ea853D58C2Ac5Ddf9a4387d942b4B4"
+VALIDATION_REGISTRY = "0x6193b3EC92f075AB759783A4c8D2dCDa21A71d40"
+X402_API = "https://api.x402.goat.network"
+
 ABI = json.loads("""[
     {"inputs":[{"internalType":"address","name":"_judge","type":"address"},{"internalType":"uint256","name":"_minDeposit","type":"uint256"},{"internalType":"uint256","name":"_judgeFee","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"},
     {"inputs":[],"name":"deposit","outputs":[],"stateMutability":"payable","type":"function"},

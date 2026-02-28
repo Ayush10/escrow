@@ -1,11 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+/// @notice Minimal interface for ERC-8004 IdentityRegistry
+interface IIdentityRegistry {
+    function ownerOf(uint256 tokenId) external view returns (address);
+    function balanceOf(address owner) external view returns (uint256);
+}
+
+/// @notice Minimal interface for ERC-8004 ReputationRegistry
+interface IReputationRegistry {
+    function updateReputation(address agent, string calldata category, int256 delta) external;
+}
+
 contract AgentCourt {
     // --- State ---
     address public judge;
     uint256 public minDeposit;
     uint256 public judgeFee;
+
+    // ERC-8004 registries on GOAT Testnet3
+    IIdentityRegistry public identityRegistry;
+    IReputationRegistry public reputationRegistry;
+    bool public requireIdentity;  // if true, agents must have ERC-8004 identity
 
     mapping(address => uint256) public balances;
     mapping(uint256 => Dispute) public disputes;
@@ -31,7 +47,7 @@ contract AgentCourt {
     event Withdrawn(address indexed agent, uint256 amount, uint256 newBalance);
     event EvidenceCommitted(address indexed agent, bytes32 indexed txKey, bytes32 evidenceHash);
     event DisputeFiled(uint256 indexed disputeId, address indexed plaintiff, address indexed defendant, uint256 stake);
-    event RulingSubmitted(uint256 indexed disputeId, address indexed winner, uint256 award);
+    event RulingSubmitted(uint256 indexed disputeId, address indexed winner, address indexed loser, uint256 award);
 
     // --- Modifiers ---
     modifier onlyJudge() {
@@ -45,10 +61,20 @@ contract AgentCourt {
     }
 
     // --- Constructor ---
-    constructor(address _judge, uint256 _minDeposit, uint256 _judgeFee) {
+    constructor(
+        address _judge,
+        uint256 _minDeposit,
+        uint256 _judgeFee,
+        address _identityRegistry,
+        address _reputationRegistry,
+        bool _requireIdentity
+    ) {
         judge = _judge;
         minDeposit = _minDeposit;
         judgeFee = _judgeFee;
+        identityRegistry = IIdentityRegistry(_identityRegistry);
+        reputationRegistry = IReputationRegistry(_reputationRegistry);
+        requireIdentity = _requireIdentity;
     }
 
     // --- Core Functions ---
@@ -56,6 +82,9 @@ contract AgentCourt {
     /// Deposit into the court. Your balance is your reputation.
     function deposit() external payable {
         require(msg.value > 0, "Zero deposit");
+        if (requireIdentity) {
+            require(identityRegistry.balanceOf(msg.sender) > 0, "No ERC-8004 identity");
+        }
         balances[msg.sender] += msg.value;
         emit Deposited(msg.sender, msg.value, balances[msg.sender]);
     }
@@ -114,6 +143,7 @@ contract AgentCourt {
     }
 
     /// Judge submits ruling. Never touches money — contract enforces payout.
+    /// Also updates ERC-8004 reputation: winner +1, loser -1.
     function submitRuling(uint256 disputeId, address winner) external onlyJudge {
         Dispute storage d = disputes[disputeId];
         require(!d.resolved, "Already resolved");
@@ -130,7 +160,11 @@ contract AgentCourt {
         // Judge gets paid from the frozen judge fee (already deducted from plaintiff)
         balances[judge] += judgeFee;
 
-        emit RulingSubmitted(disputeId, winner, totalStake);
+        // Update ERC-8004 reputation (best-effort, don't revert if registry fails)
+        try reputationRegistry.updateReputation(winner, "court_wins", int256(1)) {} catch {}
+        try reputationRegistry.updateReputation(loser, "court_losses", int256(-1)) {} catch {}
+
+        emit RulingSubmitted(disputeId, winner, loser, totalStake);
     }
 
     // --- View Functions ---
@@ -145,5 +179,9 @@ contract AgentCourt {
 
     function isEligible(address agent) external view returns (bool) {
         return balances[agent] >= minDeposit;
+    }
+
+    function hasIdentity(address agent) external view returns (bool) {
+        return identityRegistry.balanceOf(agent) > 0;
     }
 }
