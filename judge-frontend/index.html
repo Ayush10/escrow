@@ -1,14 +1,25 @@
-<!DOCTYPE html>
+<!doctype html>
 
 <html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1" name="viewport"/>
-<title>Verdict Protocol Live Demo</title>
-<link href="/assets/agent_court_favicon_light.png" rel="icon" type="image/png"/>
-<link href="/assets/agent_court_favicon_light.png" rel="shortcut icon" type="image/png"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
-<style>
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <title>Verdict Protocol Live Demo</title>
+    <link
+      href="/assets/agent_court_favicon_light.png"
+      rel="icon"
+      type="image/png"
+    />
+    <link
+      href="/assets/agent_court_favicon_light.png"
+      rel="shortcut icon"
+      type="image/png"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap"
+      rel="stylesheet"
+    />
+    <style>
       :root {
         --bg: #f6f8f8;
         --surface: rgba(255, 255, 255, 0.7);
@@ -572,30 +583,35 @@
         font-size: 13px;
       }
 
-      
-    /* dispute-accordion */
-    .dispute-details {
-      display: none; /* hidden by default */
-      padding: 16px;
-      gap: 16px;
-      animation: slideDown 0.3s ease-in-out;
-    }
-    .dispute-details.expanded {
-      display: grid;
-    }
-    .dispute-card {
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .dispute-card:hover {
-      border-color: rgba(19, 200, 236, 0.4);
-    }
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .dispute-details-old {
+      /* dispute-accordion */
+      .dispute-details {
+        display: none; /* hidden by default */
+        padding: 16px;
+        gap: 16px;
+        animation: slideDown 0.3s ease-in-out;
+      }
+      .dispute-details.expanded {
+        display: grid;
+      }
+      .dispute-card {
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .dispute-card:hover {
+        border-color: rgba(19, 200, 236, 0.4);
+      }
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .dispute-details-old {
         padding: 16px;
         /* moved to accordion CSS */
       }
@@ -1200,318 +1216,533 @@
       #manualAgentUrl {
         font-size: 13px;
       }
-    
-        /* recentDisputes-expansion */
-        #recentDisputes {
-          max-height: 400px;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding-right: 8px; /* For scrollbar */
-        }
-        #verdictsBody {
-          /* allow table expansion implicitly but limit height if necessary */
-        }
-        </style>
-</head>
-<body>
-<div class="dashboard-shell">
-<aside class="sidebar glass">
-<div class="sidebar-header">
-<img alt="Verdict Protocol logo" class="sidebar-logo" src="/assets/agent_court_logo_light.png"/>
-<div class="hero-brand">
-<img alt="Verdict Protocol" src="/assets/agent_court_favicon_light.png"/>
-<span>Ayush + Karan</span>
-</div>
-</div>
-<nav class="sidebar-nav">
-<button class="tab-btn active" data-tab="tab-control">
-            Control Panel</button><button class="tab-btn" data-tab="tab-court">Court Dashboard</button><button class="tab-btn" data-tab="tab-network">
-            Network Explorer</button><button class="tab-btn" id="themeToggle" style="margin-top: auto; justify-content: center; gap: 8px">
+
+      /* recentDisputes-expansion */
+      #recentDisputes {
+        max-height: 400px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding-right: 8px; /* For scrollbar */
+      }
+      #verdictsBody {
+        /* allow table expansion implicitly but limit height if necessary */
+      }
+
+      /* Modal Styles */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+      .modal-overlay.open {
+        opacity: 1;
+        pointer-events: all;
+      }
+      .modal-content {
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.95) 0%,
+          rgba(248, 250, 252, 0.95) 100%
+        );
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: 24px;
+        padding: 40px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: var(--shadow-lg);
+        transform: translateY(20px);
+        transition: transform 0.3s;
+        position: relative;
+      }
+      .modal-overlay.open .modal-content {
+        transform: translateY(0);
+      }
+      body.dark .modal-content {
+        background: linear-gradient(
+          180deg,
+          rgba(30, 41, 59, 0.95) 0%,
+          rgba(15, 23, 42, 0.95) 100%
+        );
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+      .modal-close {
+        position: absolute;
+        top: 24px;
+        right: 24px;
+        background: transparent;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-weight: bold;
+        color: #64748b;
+        transition: all 0.2s;
+      }
+      body.dark .modal-close {
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #94a3b8;
+      }
+      .modal-close:hover {
+        background: rgba(19, 200, 236, 0.1);
+        color: var(--brand);
+      }
+      .opinion-parsed {
+        font-family: var(--sans);
+        color: #334155;
+        line-height: 1.6;
+      }
+      body.dark .opinion-parsed {
+        color: #e2e8f0;
+      }
+      .opinion-parsed h2 {
+        font-size: 20px;
+        color: #0f172a;
+        border-bottom: 2px solid rgba(19, 200, 236, 0.2);
+        padding-bottom: 8px;
+        margin-top: 32px;
+        margin-bottom: 16px;
+      }
+      body.dark .opinion-parsed h2 {
+        color: #f8fafc;
+      }
+      .opinion-parsed h1.court-title {
+        font-size: 24px;
+        text-align: center;
+        color: var(--brand-2);
+        letter-spacing: 0.05em;
+        margin-top: 0;
+      }
+      .opinion-parsed h3 {
+        font-size: 16px;
+        color: #64748b;
+        text-transform: uppercase;
+        margin-top: 24px;
+        margin-bottom: 12px;
+      }
+      body.dark .opinion-parsed h3 {
+        color: #94a3b8;
+      }
+      .opinion-parsed p {
+        margin-bottom: 16px;
+      }
+      .opinion-parsed code {
+        background: rgba(0, 0, 0, 0.05);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: var(--mono);
+        font-size: 0.9em;
+      }
+      body.dark .opinion-parsed code {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .opinion-parsed pre.json-block {
+        background: rgba(0, 0, 0, 0.8);
+        color: #a78bfa;
+        padding: 16px;
+        border-radius: 12px;
+        overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 13px;
+        margin-top: 24px;
+      }
+      body.dark .opinion-parsed pre.json-block {
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="dashboard-shell">
+      <aside class="sidebar glass">
+        <div class="sidebar-header">
+          <img
+            alt="Verdict Protocol logo"
+            class="sidebar-logo"
+            src="/assets/agent_court_logo_light.png"
+          />
+          <div class="hero-brand">
+            <img
+              alt="Verdict Protocol"
+              src="/assets/agent_court_favicon_light.png"
+            />
+            <span>Ayush + Karan</span>
+          </div>
+        </div>
+        <nav class="sidebar-nav">
+          <button class="tab-btn active" data-tab="tab-control">
+            Control Panel</button
+          ><button class="tab-btn" data-tab="tab-court">Court Dashboard</button
+          ><button class="tab-btn" data-tab="tab-network">
+            Network Explorer</button
+          ><button
+            class="tab-btn"
+            id="themeToggle"
+            style="margin-top: auto; justify-content: center; gap: 8px"
+          >
             ☾ Dark Mode
           </button>
-</nav>
-<div class="footer">
+        </nav>
+        <div class="footer">
           Source:
-          <a class="inline-link" href="https://github.com/Ayush10/escrow" target="_blank">Ayush10/escrow</a>
-</div>
-</aside>
-<main class="main-content">
-<div class="tab-pane active" id="tab-control">
-<div class="hero" style="align-items: center; padding: 20px 32px">
-<div class="hero-left">
-<h1 style="font-size: 24px">Verdict Protocol Live Demo</h1>
-<p style="margin-top: 4px; font-size: 13px">
+          <a
+            class="inline-link"
+            href="https://github.com/Ayush10/escrow"
+            target="_blank"
+            >Ayush10/escrow</a
+          >
+        </div>
+      </aside>
+      <main class="main-content">
+        <div class="tab-pane active" id="tab-control">
+          <div class="hero" style="align-items: center; padding: 20px 32px">
+            <div class="hero-left">
+              <h1 style="font-size: 24px">Verdict Protocol Live Demo</h1>
+              <p style="margin-top: 4px; font-size: 13px">
                 Real-time demo runner for x402 payments, on-chain
                 escrow/disputes on GOAT, evidence anchoring, judge decisions,
                 and reputation updates.
               </p>
-</div>
-<div class="hero-right" style="flex-direction: row; align-items: center; gap: 16px">
-<div class="row" style="margin-top: 0">
-<input id="runnerUrlInput" type="hidden" value="http://127.0.0.1:4004"/><button class="brand" id="connectBtn">Connect Server</button>
-</div>
-<div class="pill">
-<span class="dot warn" id="runnerDot"></span>
-<span id="runnerLabel">runner: not connected</span>
-</div>
-<div style="
+            </div>
+            <div
+              class="hero-right"
+              style="flex-direction: row; align-items: center; gap: 16px"
+            >
+              <div class="row" style="margin-top: 0">
+                <input
+                  id="runnerUrlInput"
+                  type="hidden"
+                  value="http://127.0.0.1:4004"
+                /><button class="brand" id="connectBtn">Connect Server</button>
+              </div>
+              <div class="pill">
+                <span class="dot warn" id="runnerDot"></span>
+                <span id="runnerLabel">runner: not connected</span>
+              </div>
+              <div
+                style="
                   display: flex;
                   flex-direction: column;
                   align-items: flex-end;
                   gap: 4px;
                   font-size: 11px;
-                ">
-<div class="sub mono" id="contractLine" style="margin: 0">
+                "
+              >
+                <div class="sub mono" id="contractLine" style="margin: 0">
                   contract: -
                 </div>
-<a class="inline-link" href="https://explorer.testnet3.goat.network" id="explorerLink" style="margin: 0" target="_blank">open GOAT explorer</a>
-</div>
-</div>
-</div>
-<div class="grid top" style="grid-template-columns: 1fr 1fr">
-<div class="panel glass">
-<h2>Automated Autoplay</h2>
-<div class="sub">
+                <a
+                  class="inline-link"
+                  href="https://explorer.testnet3.goat.network"
+                  id="explorerLink"
+                  style="margin: 0"
+                  target="_blank"
+                  >open GOAT explorer</a
+                >
+              </div>
+            </div>
+          </div>
+          <div class="grid top" style="grid-template-columns: 1fr 1fr">
+            <div class="panel glass">
+              <h2>Automated Autoplay</h2>
+              <div class="sub">
                 Full-flow execution of predefined scenarios.
               </div>
-<div class="sub">
+              <div class="sub">
                 One click for Happy, Dispute, or Full autoplay.
               </div>
-<div class="row" style="margin-top: 10px">
-<label class="sub" for="windowSec" style="margin: 0">dispute window (sec)</label>
-<input id="windowSec" max="180" min="5" style="max-width: 100px" type="number" value="30"/>
-</div>
-<div class="btn-group">
-<button class="brand" id="runHappyBtn">Run Happy</button>
-<button class="brand secondary" id="runDisputeBtn">
+              <div class="row" style="margin-top: 10px">
+                <label class="sub" for="windowSec" style="margin: 0"
+                  >dispute window (sec)</label
+                >
+                <input
+                  id="windowSec"
+                  max="180"
+                  min="5"
+                  style="max-width: 100px"
+                  type="number"
+                  value="30"
+                />
+              </div>
+              <div class="btn-group">
+                <button class="brand" id="runHappyBtn">Run Happy</button>
+                <button class="brand secondary" id="runDisputeBtn">
                   Run Dispute
                 </button>
-<button id="runFullBtn">Run Full</button>
-</div>
-<div class="btn-group">
-<button id="refreshRunsBtn">Refresh Runs</button>
-<button id="refreshVerdictsBtn">Refresh Verdicts</button>
-<button id="refreshReputationBtn">Refresh Reputation</button>
-</div>
-<div class="sub mono" id="activeRunText" style="margin-top: 8px">
+                <button id="runFullBtn">Run Full</button>
+              </div>
+              <div class="btn-group">
+                <button id="refreshRunsBtn">Refresh Runs</button>
+                <button id="refreshVerdictsBtn">Refresh Verdicts</button>
+                <button id="refreshReputationBtn">Refresh Reputation</button>
+              </div>
+              <div class="sub mono" id="activeRunText" style="margin-top: 8px">
                 active run: none
               </div>
-</div>
-<div class="panel glass">
-<h2>Manual Execution Flow</h2>
-<div class="sub">Step-by-step transaction execution.</div>
-<div class="row" style="margin-top: 10px; margin-bottom: 10px">
-<input class="grow mono" id="manualAgentUrl" placeholder="Agent API Endpoint URL"/>
-</div>
-<div class="sub">
+            </div>
+            <div class="panel glass">
+              <h2>Manual Execution Flow</h2>
+              <div class="sub">Step-by-step transaction execution.</div>
+              <div class="row" style="margin-top: 10px; margin-bottom: 10px">
+                <input
+                  class="grow mono"
+                  id="manualAgentUrl"
+                  placeholder="Agent API Endpoint URL"
+                />
+              </div>
+              <div class="sub">
                 Push payment entry for dashboard visibility.
               </div>
-<div class="sub" style="margin-top: 12px; margin-bottom: 4px">
+              <div class="sub" style="margin-top: 12px; margin-bottom: 4px">
                 Payment Configuration
               </div>
-<div class="row" style="margin-top: 10px">
-<input class="grow mono" id="paymentRecipientInput" placeholder="recipient 0x..."/>
-<input id="paymentAmountInput" style="max-width: 100px" value="0.0005"/>
-</div>
-<div class="btn-group">
-<button id="paymentBtn">Run Payment</button>
-</div>
-<div class="status-banner" id="paymentStatus" style="margin-top: 10px">
+              <div class="row" style="margin-top: 10px">
+                <input
+                  class="grow mono"
+                  id="paymentRecipientInput"
+                  placeholder="recipient 0x..."
+                />
+                <input
+                  id="paymentAmountInput"
+                  style="max-width: 100px"
+                  value="0.0005"
+                />
+              </div>
+              <div class="btn-group">
+                <button id="paymentBtn">Run Payment</button>
+              </div>
+              <div
+                class="status-banner"
+                id="paymentStatus"
+                style="margin-top: 10px"
+              >
                 No payment run yet.
               </div>
-</div>
-</div>
-<div class="grid main">
-<div class="stack">
-<div class="panel glass">
-<h2>Run Timeline</h2>
-<div class="chips">
-<span class="chip warn" id="runStateChip">idle</span>
-</div>
-<div class="timeline" id="timeline"></div>
-</div>
-<div class="panel glass">
-<h2>Live Log</h2>
-<div class="log" id="runLog"></div>
-</div>
-<div class="panel glass">
-<h2>Recent Runs</h2>
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>run</th>
-<th>mode</th>
-<th>status</th>
-<th>agreements</th>
-<th>updated</th>
-</tr>
-</thead>
-<tbody id="runsBody">
-<tr>
-<td colspan="5">No runs.</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-<div class="stack">
-<div class="panel glass">
-<h2>Recent Disputes</h2>
-<div class="sub">
+            </div>
+          </div>
+          <div class="grid main">
+            <div class="stack">
+              <div class="panel glass">
+                <h2>Run Timeline</h2>
+                <div class="chips">
+                  <span class="chip warn" id="runStateChip">idle</span>
+                </div>
+                <div class="timeline" id="timeline"></div>
+              </div>
+              <div class="panel glass">
+                <h2>Live Log</h2>
+                <div class="log" id="runLog"></div>
+              </div>
+              <div class="panel glass">
+                <h2>Recent Runs</h2>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>run</th>
+                        <th>mode</th>
+                        <th>status</th>
+                        <th>agreements</th>
+                        <th>updated</th>
+                      </tr>
+                    </thead>
+                    <tbody id="runsBody">
+                      <tr>
+                        <td colspan="5">No runs.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="stack">
+              <div class="panel glass">
+                <h2>Recent Disputes</h2>
+                <div class="sub">
                   Live dispute outcomes with full judicial opinion and
                   reasoning.
                 </div>
-<div class="disputes-list" id="recentDisputes">
-<div class="sub">No disputes yet.</div>
-</div>
-</div>
-<div class="panel glass">
-<h2>Verdicts</h2>
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>dispute</th>
-<th>agreement</th>
-<th>status</th>
-<th>winner</th>
-<th>confidence</th>
-</tr>
-</thead>
-<tbody id="verdictsBody">
-<tr>
-<td colspan="5">No verdicts.</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="status-banner" id="verdictDetail" style="margin-top: 10px">
+                <div class="disputes-list" id="recentDisputes">
+                  <div class="sub">No disputes yet.</div>
+                </div>
+              </div>
+              <div class="panel glass">
+                <h2>Verdicts</h2>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>dispute</th>
+                        <th>agreement</th>
+                        <th>status</th>
+                        <th>winner</th>
+                        <th>confidence</th>
+                      </tr>
+                    </thead>
+                    <tbody id="verdictsBody">
+                      <tr>
+                        <td colspan="5">No verdicts.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div
+                  class="status-banner"
+                  id="verdictDetail"
+                  style="margin-top: 10px"
+                >
                   No verdict selected.
                 </div>
-</div>
-</div></div>
-<div style="display: none">
-<div id="quickUrls"></div>
-<div id="connectionBanner"></div>
-</div>
-</div>
-<div class="tab-pane" id="tab-court">
-<div class="court-dashboard">
-<div class="court-stats" id="courtStats">
-<div class="court-stat-card">
-<div class="court-stat-value brand">0</div>
-<div class="court-stat-label">Disputes</div>
-</div>
-<div class="court-stat-card">
-<div class="court-stat-value ok">0</div>
-<div class="court-stat-label">Resolved</div>
-</div>
-<div class="court-stat-card">
-<div class="court-stat-value warn">0</div>
-<div class="court-stat-label">Services</div>
-</div>
-<div class="court-stat-card">
-<div class="court-stat-value">0</div>
-<div class="court-stat-label">Transactions</div>
-</div>
-<div class="court-stat-card">
-<div class="court-stat-value ok">$0.0000</div>
-<div class="court-stat-label">USDC in Escrow</div>
-</div>
-</div>
-<div class="court-block">
-<h2 class="court-heading">Court System</h2>
-<div class="court-tier-grid">
-<div class="tier-card district">
-<div class="tier-name">District Court</div>
-<div class="tier-model mono">claude-haiku-4-5</div>
-<div class="tier-fee district">$0.0050</div>
-<div class="tier-rule">First Hearing</div>
-</div>
-<div class="tier-card appeals">
-<div class="tier-name">Appeals Court</div>
-<div class="tier-model mono">claude-sonnet-4-6</div>
-<div class="tier-fee appeals">$0.0100</div>
-<div class="tier-rule">1 Prior Loss</div>
-</div>
-<div class="tier-card supreme">
-<div class="tier-name">Supreme Court</div>
-<div class="tier-model mono">claude-opus-4-6</div>
-<div class="tier-fee supreme">$0.0200</div>
-<div class="tier-rule">Final Ruling</div>
-</div>
-</div>
-</div>
-<div class="court-block">
-<div class="section-head-row">
-<h2 class="court-heading">Registered Services</h2>
-<span class="section-pill" id="servicesCountPill">0</span>
-</div>
-<div class="service-list" id="registeredServices">
-<div class="sub">No services yet.</div>
-</div>
-</div>
-<div class="court-block">
-<h2 class="court-heading">Registered Agents</h2>
-<div class="agent-list" id="registeredAgents">
-<div class="sub">No agents yet.</div>
-</div>
-</div>
-</div>
-
-</div>
-<div class="tab-pane" id="tab-network">
-<div class="grid main">
-<div class="stack">
-<div class="panel glass">
-<h2>Service Health</h2>
-<div class="health-grid" id="healthGrid"></div>
-</div>
-<div class="panel glass">
-<h2>Agreement Explorer</h2>
-<div class="row" style="margin-top: 10px">
-<input class="grow mono" id="agreementInput" placeholder="agreementId"/>
-<button id="loadAgreementBtn">Load</button>
-</div>
-<div class="status-banner" id="agreementDetail" style="margin-top: 10px">
+              </div>
+            </div>
+          </div>
+          <div style="display: none">
+            <div id="quickUrls"></div>
+            <div id="connectionBanner"></div>
+          </div>
+        </div>
+        <div class="tab-pane" id="tab-court">
+          <div class="court-dashboard">
+            <div class="court-stats" id="courtStats">
+              <div class="court-stat-card">
+                <div class="court-stat-value brand">0</div>
+                <div class="court-stat-label">Disputes</div>
+              </div>
+              <div class="court-stat-card">
+                <div class="court-stat-value ok">0</div>
+                <div class="court-stat-label">Resolved</div>
+              </div>
+              <div class="court-stat-card">
+                <div class="court-stat-value warn">0</div>
+                <div class="court-stat-label">Services</div>
+              </div>
+              <div class="court-stat-card">
+                <div class="court-stat-value">0</div>
+                <div class="court-stat-label">Transactions</div>
+              </div>
+              <div class="court-stat-card">
+                <div class="court-stat-value ok">$0.0000</div>
+                <div class="court-stat-label">USDC in Escrow</div>
+              </div>
+            </div>
+            <div class="court-block">
+              <h2 class="court-heading">Court System</h2>
+              <div class="court-tier-grid">
+                <div class="tier-card district">
+                  <div class="tier-name">District Court</div>
+                  <div class="tier-model mono">claude-haiku-4-5</div>
+                  <div class="tier-fee district">$0.0050</div>
+                  <div class="tier-rule">First Hearing</div>
+                </div>
+                <div class="tier-card appeals">
+                  <div class="tier-name">Appeals Court</div>
+                  <div class="tier-model mono">claude-sonnet-4-6</div>
+                  <div class="tier-fee appeals">$0.0100</div>
+                  <div class="tier-rule">1 Prior Loss</div>
+                </div>
+                <div class="tier-card supreme">
+                  <div class="tier-name">Supreme Court</div>
+                  <div class="tier-model mono">claude-opus-4-6</div>
+                  <div class="tier-fee supreme">$0.0200</div>
+                  <div class="tier-rule">Final Ruling</div>
+                </div>
+              </div>
+            </div>
+            <div class="court-block">
+              <div class="section-head-row">
+                <h2 class="court-heading">Registered Services</h2>
+                <span class="section-pill" id="servicesCountPill">0</span>
+              </div>
+              <div class="service-list" id="registeredServices">
+                <div class="sub">No services yet.</div>
+              </div>
+            </div>
+            <div class="court-block">
+              <h2 class="court-heading">Registered Agents</h2>
+              <div class="agent-list" id="registeredAgents">
+                <div class="sub">No agents yet.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane" id="tab-network">
+          <div class="grid main">
+            <div class="stack">
+              <div class="panel glass">
+                <h2>Service Health</h2>
+                <div class="health-grid" id="healthGrid"></div>
+              </div>
+              <div class="panel glass">
+                <h2>Agreement Explorer</h2>
+                <div class="row" style="margin-top: 10px">
+                  <input
+                    class="grow mono"
+                    id="agreementInput"
+                    placeholder="agreementId"
+                  />
+                  <button id="loadAgreementBtn">Load</button>
+                </div>
+                <div
+                  class="status-banner"
+                  id="agreementDetail"
+                  style="margin-top: 10px"
+                >
                   No agreement loaded.
                 </div>
-</div>
-</div>
-<div class="stack">
-<div class="panel glass">
-<h2>Reputation</h2>
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>actor</th>
-<th>score</th>
-<th>events</th>
-<th>updated</th>
-</tr>
-</thead>
-<tbody id="reputationBody">
-<tr>
-<td colspan="4">No reputation rows.</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="status-banner" id="reputationDetail" style="margin-top: 10px">
+              </div>
+            </div>
+            <div class="stack">
+              <div class="panel glass">
+                <h2>Reputation</h2>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>actor</th>
+                        <th>score</th>
+                        <th>events</th>
+                        <th>updated</th>
+                      </tr>
+                    </thead>
+                    <tbody id="reputationBody">
+                      <tr>
+                        <td colspan="4">No reputation rows.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div
+                  class="status-banner"
+                  id="reputationDetail"
+                  style="margin-top: 10px"
+                >
                   No actor selected.
                 </div>
-</div>
-</div>
-</div>
-</div>
-</main>
-</div>
-<script>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script>
       // Tab Switching Logic
       document.querySelectorAll(".tab-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -1623,6 +1854,66 @@
         const decimals = digits.length >= 13 ? 18 : 6;
         const parsed = Number(digits) / Math.pow(10, decimals);
         return neg ? -parsed : parsed;
+      }
+
+      function formatOpinionHTML(text) {
+        if (!text) return "";
+        let escaped = String(text).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+        let jsonBlock = "";
+        const jsonMatch = escaped.match(/```json([\s\S]*?)```/);
+        if (jsonMatch) {
+          jsonBlock = `<pre class="json-block">${jsonMatch[1].trim()}</pre>`;
+          escaped = escaped.replace(
+            /```json[\s\S]*?```/,
+            "___JSON_BLOCK_HERE___",
+          );
+        }
+
+        const lines = escaped.split("\\n");
+        let parsed = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          let line = lines[i].trim();
+          if (line === "___JSON_BLOCK_HERE___") {
+            parsed.push(jsonBlock);
+            continue;
+          }
+          if (line === "") {
+            parsed.push("<br/>");
+            continue;
+          }
+
+          if (
+            line.includes("AGENT COURT PROTOCOL") ||
+            line.includes("JUDICIAL OPINION")
+          ) {
+            parsed.push(`<h1 class="court-title">${line}</h1>`);
+          } else if (/^[IVX]+\.\s+[A-Z\s:]+/.test(line)) {
+            parsed.push(`<h2>${line}</h2>`);
+          } else if (line.startsWith("Case No")) {
+            parsed.push(`<h3>${line}</h3>`);
+          } else if (line.match(/^0x[a-fA-F0-9]{40}/)) {
+            let cleanLine = line.replace(
+              /(0x[a-fA-F0-9]{40})/g,
+              `<code>$1</code>`,
+            );
+            parsed.push(`<p><strong>${cleanLine}</strong></p>`);
+          } else if (/^[\-\•]\s/.test(line) || /^\d+\.\s/.test(line)) {
+            let pLine = line.replace(/`(.*?)`/g, `<code>$1</code>`);
+            pLine = pLine.replace(/\*\*(.*?)\*\*/g, `<strong>$1</strong>`);
+            pLine = pLine.replace(/\*(.*?)\*/g, `<em>$1</em>`);
+            parsed.push(
+              `<div style="margin-left: 16px; margin-bottom: 8px;">${pLine}</div>`,
+            );
+          } else {
+            let pLine = line.replace(/`(.*?)`/g, `<code>$1</code>`);
+            pLine = pLine.replace(/\*\*(.*?)\*\*/g, `<strong>$1</strong>`);
+            pLine = pLine.replace(/\*(.*?)\*/g, `<em>$1</em>`);
+            parsed.push(`<p>${pLine}</p>`);
+          }
+        }
+        return `<div>${parsed.join("")}</div>`;
       }
 
       function verdictOpinionText(v) {
@@ -1775,16 +2066,16 @@
                   <div class="opinion-title">Judicial Opinion</div>
                   <div class="opinion-court">${escapeHtml(tier)} court</div>
                 </div>
-                <pre class="opinion-pre">${escapeHtml(opinion)}</pre>
+                <div class="opinion-parsed" style="margin-top: 24px; padding: 24px; background: rgba(0,0,0,0.02); border-radius: 12px; border: 1px solid rgba(0,0,0,0.05);">${formatOpinionHTML(opinion)}</div>
               </div>
             </div>
           `;
 
           card.addEventListener("click", () => {
             // Toggle expanded class on details
-            const details = card.querySelector('.dispute-details');
+            const details = card.querySelector(".dispute-details");
             if (details) {
-              details.classList.toggle('expanded');
+              details.classList.toggle("expanded");
             }
             if (v.disputeId !== undefined && v.disputeId !== null) {
               openVerdict(v.disputeId);
@@ -2447,16 +2738,23 @@
         const v = await fetchJson(
           `${STATE.services.judge}/verdicts/${disputeId}`,
         );
-        let html = `
+        const rawOpinion = verdictOpinionText(v);
+        const formattedHTML = formatOpinionHTML(rawOpinion);
+
+        document.getElementById("modalBody").innerHTML = formattedHTML;
+        document.getElementById("verdictModal").classList.add("open");
+
+        // Also update the tiny status banner as before just in case
+        let statusHtml = `
           dispute: ${v.disputeId}<br/>
           winner: <span class="mono">${v.winner || "-"}</span><br/>
           confidence: ${v.confidence ?? "-"}<br/>
           reasons: ${(v.reasonCodes || []).join(", ") || "-"}
         `;
         if (v.submitTxHash) {
-          html += `<br/>tx: <a class="inline-link mono" target="_blank" href="${STATE.explorerUrl}/tx/${v.submitTxHash}">${short(v.submitTxHash, 14)}</a>`;
+          statusHtml += `<br/>tx: <a class="inline-link mono" target="_blank" href="${STATE.explorerUrl}/tx/${v.submitTxHash}">${short(v.submitTxHash, 14)}</a>`;
         }
-        $("verdictDetail").innerHTML = html;
+        document.getElementById("verdictDetail").innerHTML = statusHtml;
       }
 
       async function refreshReputation() {
@@ -2667,5 +2965,18 @@
 
       boot();
     </script>
-</body>
+    <div class="modal-overlay" id="verdictModal">
+      <div class="modal-content glass">
+        <button
+          class="modal-close"
+          onclick="
+            document.getElementById('verdictModal').classList.remove('open')
+          "
+        >
+          ✕
+        </button>
+        <div class="opinion-parsed" id="modalBody"></div>
+      </div>
+    </div>
+  </body>
 </html>
