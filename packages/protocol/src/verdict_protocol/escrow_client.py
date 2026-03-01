@@ -8,7 +8,7 @@ from typing import Any
 from eth_utils import keccak, to_checksum_address
 from web3 import Web3
 
-DEFAULT_ABI_PATH = Path(__file__).resolve().parents[4] / "contracts" / "abi" / "Escrow.json"
+DEFAULT_ABI_PATH = Path(__file__).resolve().parents[4] / "contracts" / "abi" / "AgentCourt.json"
 
 
 @dataclass(slots=True)
@@ -84,8 +84,15 @@ class EscrowClient:
             fn = self.contract.functions.depositPool(amount_wei)
             return self._send_tx(fn)
         if "deposit" in self.fn_index:
-            fn = self.contract.functions.deposit()
-            return self._send_tx(fn, value=amount_wei)
+            inputs = self.fn_index["deposit"].get("inputs", [])
+            if inputs and inputs[0]["type"] == "uint256":
+                # USDC version: deposit(uint256 amount) — ERC-20 transferFrom
+                fn = self.contract.functions.deposit(amount_wei)
+                return self._send_tx(fn)
+            else:
+                # Native BTC version: deposit() payable
+                fn = self.contract.functions.deposit()
+                return self._send_tx(fn, value=amount_wei)
         raise RuntimeError("No compatible deposit function in ABI")
 
     def post_bond(self, agreement_id: str, amount_wei: int) -> EscrowTxResult:
@@ -93,8 +100,13 @@ class EscrowClient:
             fn = self.contract.functions.postBond(agreement_id, amount_wei)
             return self._send_tx(fn)
         if "deposit" in self.fn_index:
-            fn = self.contract.functions.deposit()
-            return self._send_tx(fn, value=amount_wei)
+            inputs = self.fn_index["deposit"].get("inputs", [])
+            if inputs and inputs[0]["type"] == "uint256":
+                fn = self.contract.functions.deposit(amount_wei)
+                return self._send_tx(fn)
+            else:
+                fn = self.contract.functions.deposit()
+                return self._send_tx(fn, value=amount_wei)
         raise RuntimeError("No compatible post bond function in ABI")
 
     def commit_evidence_hash(self, agreement_id: str, root_hash: str) -> EscrowTxResult:
@@ -111,24 +123,33 @@ class EscrowClient:
         self,
         agreement_id: str,
         *,
+        tx_id: int | None = None,
         defendant: str | None = None,
         stake: int | None = None,
         plaintiff_evidence: str | None = None,
     ) -> EscrowTxResult:
-        _ = agreement_id
         if "fileDispute" not in self.fn_index:
             raise RuntimeError("No fileDispute function in ABI")
 
         inputs = self.fn_index["fileDispute"].get("inputs", [])
-        if len(inputs) == 1:
-            fn = self.contract.functions.fileDispute(agreement_id)
+        evidence = plaintiff_evidence or "0x" + "0" * 64
+
+        # Our contract: fileDispute(uint256 txId, uint256 stake, bytes32 evidence)
+        if len(inputs) >= 3 and inputs[0]["type"] == "uint256" and inputs[0]["name"] == "txId":
+            if tx_id is None or stake is None:
+                raise ValueError("tx_id and stake are required for this ABI")
+            fn = self.contract.functions.fileDispute(int(tx_id), int(stake), evidence)
             return self._send_tx(fn)
 
+        # Legacy: fileDispute(address defendant, uint256 stake, bytes32 evidence)
         if len(inputs) >= 3 and inputs[0]["type"] == "address":
             if defendant is None or stake is None:
                 raise ValueError("defendant and stake are required for this ABI")
-            evidence = plaintiff_evidence or "0x" + "0" * 64
             fn = self.contract.functions.fileDispute(to_checksum_address(defendant), int(stake), evidence)
+            return self._send_tx(fn)
+
+        if len(inputs) == 1:
+            fn = self.contract.functions.fileDispute(agreement_id)
             return self._send_tx(fn)
 
         raise RuntimeError("Unsupported fileDispute ABI signature")
