@@ -494,8 +494,7 @@
       /* Court Dashboard specific styles adapted for light theme */
       .disputes-list {
         margin-top: 12px;
-        display: grid;
-        gap: 16px;
+        /* moved to accordion CSS */
       }
       .dispute-card {
         border-radius: 16px;
@@ -573,10 +572,32 @@
         font-size: 13px;
       }
 
-      .dispute-details {
+      
+    /* dispute-accordion */
+    .dispute-details {
+      display: none; /* hidden by default */
+      padding: 16px;
+      gap: 16px;
+      animation: slideDown 0.3s ease-in-out;
+    }
+    .dispute-details.expanded {
+      display: grid;
+    }
+    .dispute-card {
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .dispute-card:hover {
+      border-color: rgba(19, 200, 236, 0.4);
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .dispute-details-old {
         padding: 16px;
-        display: grid;
-        gap: 16px;
+        /* moved to accordion CSS */
       }
       .dispute-grid {
         display: grid;
@@ -800,8 +821,7 @@
       .service-list,
       .agent-list {
         margin-top: 0;
-        display: grid;
-        gap: 16px;
+        /* moved to accordion CSS */
       }
       .service-card,
       .agent-card {
@@ -1761,6 +1781,11 @@
           `;
 
           card.addEventListener("click", () => {
+            // Toggle expanded class on details
+            const details = card.querySelector('.dispute-details');
+            if (details) {
+              details.classList.toggle('expanded');
+            }
             if (v.disputeId !== undefined && v.disputeId !== null) {
               openVerdict(v.disputeId);
             }
