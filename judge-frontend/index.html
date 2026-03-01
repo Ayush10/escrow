@@ -1343,12 +1343,12 @@
         color: #94a3b8;
       }
       .opinion-parsed p {
-        margin-bottom: 16px;
+        margin-bottom: 24px;
       }
       .opinion-parsed code {
         background: rgba(0, 0, 0, 0.05);
-        padding: 2px 6px;
-        border-radius: 4px;
+        padding: 4px 8px;
+        border-radius: 6px;
         font-family: var(--mono);
         font-size: 0.9em;
       }
@@ -1358,12 +1358,13 @@
       .opinion-parsed pre.json-block {
         background: rgba(0, 0, 0, 0.8);
         color: #a78bfa;
-        padding: 16px;
+        padding: 20px;
         border-radius: 12px;
         overflow-x: auto;
         font-family: var(--mono);
-        font-size: 13px;
-        margin-top: 24px;
+        font-size: 14px;
+        margin-top: 32px;
+        line-height: 1.5;
       }
       body.dark .opinion-parsed pre.json-block {
         background: rgba(0, 0, 0, 0.5);
@@ -1871,7 +1872,9 @@
           );
         }
 
-        const lines = escaped.split("\\n");
+        // Deal with real newlines, not just escaped literal '\n'
+        escaped = escaped.replace(/\\n/g, "\n");
+        const lines = escaped.split("\n");
         let parsed = [];
 
         for (let i = 0; i < lines.length; i++) {
@@ -1889,7 +1892,9 @@
             line.includes("AGENT COURT PROTOCOL") ||
             line.includes("JUDICIAL OPINION")
           ) {
-            parsed.push(`<h1 class="court-title">${line}</h1>`);
+            parsed.push(
+              `<h1 class="court-title" style="margin-top: 32px;">${line}</h1>`,
+            );
           } else if (/^[IVX]+\.\s+[A-Z\s:]+/.test(line)) {
             parsed.push(`<h2>${line}</h2>`);
           } else if (line.startsWith("Case No")) {
