@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EventReceipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "chainId",
+    "contractAddress",
+    "agreementId",
+    "clauseHash",
+    "sequence",
+    "eventType",
+    "timestamp",
+    "actorId",
+    "counterpartyId",
+    "requestId",
+    "payloadHash",
+    "prevHash",
+    "receiptHash",
+    "signature"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "receiptId": { "type": "string", "minLength": 1 },
+    "chainId": { "type": "integer", "minimum": 1 },
+    "contractAddress": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "agreementId": { "type": "string", "minLength": 1 },
+    "clauseHash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "eventType": {
+      "type": "string",
+      "enum": ["request", "response", "payment", "sla_check", "dispute_filed"]
+    },
+    "timestamp": { "type": "integer", "minimum": 0 },
+    "actorId": { "type": "string", "pattern": "^did:8004:0x[a-fA-F0-9]{40}$" },
+    "counterpartyId": { "type": "string", "pattern": "^did:8004:0x[a-fA-F0-9]{40}$" },
+    "requestId": { "type": "string", "minLength": 1 },
+    "payloadHash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+    "prevHash": { "type": "string", "pattern": "^0x([a-fA-F0-9]{64}|0)$" },
+    "metadata": { "type": "object", "additionalProperties": true },
+    "receiptHash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+    "signature": { "type": "string", "pattern": "^0x[a-fA-F0-9]+$" }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "verdict-protocol-python",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "demo": "uv run --package demo-runner demo",
+    "dashboard:payment": "PYTHONPATH=apps/demo_runner/src uv run python -m demo_runner.push_dashboard_payment",
+    "dev:evidence": "uv run --package evidence-service evidence-service",
+    "dev:judge": "uv run --package judge-service judge-service",
+    "dev:reputation": "uv run --package reputation-service reputation-service",
+    "dev:provider": "uv run --package provider-api provider-api",
+    "test": "uv run pytest"
+  }
+}

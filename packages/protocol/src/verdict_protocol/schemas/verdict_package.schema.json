@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VerdictPackage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "verdictId",
+    "disputeId",
+    "chainId",
+    "contractAddress",
+    "agreementId",
+    "clauseHash",
+    "transfers",
+    "judgeFee",
+    "reasonCodes",
+    "evidenceReceiptIds",
+    "facts",
+    "confidence",
+    "flags",
+    "verdictHash",
+    "judgeSignature"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "verdictId": { "type": "string", "minLength": 1 },
+    "disputeId": { "type": "string", "minLength": 1 },
+    "chainId": { "type": "integer", "minimum": 1 },
+    "contractAddress": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "agreementId": { "type": "string", "minLength": 1 },
+    "clauseHash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+    "transfers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["to", "amount", "reason"],
+        "properties": {
+          "to": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+          "amount": { "type": "string", "pattern": "^[0-9]+$" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "judgeFee": { "type": "string", "pattern": "^[0-9]+$" },
+    "reasonCodes": { "type": "array", "items": { "type": "string" } },
+    "evidenceReceiptIds": { "type": "array", "items": { "type": "string" } },
+    "facts": { "type": "object", "additionalProperties": true },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "flags": { "type": "array", "items": { "type": "string" } },
+    "verdictHash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+    "judgeSignature": { "type": "string", "pattern": "^0x[a-fA-F0-9]+$" }
+  }
+}

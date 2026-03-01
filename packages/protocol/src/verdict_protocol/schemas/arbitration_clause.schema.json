@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ArbitrationClause",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "clauseId",
+    "chainId",
+    "contractAddress",
+    "agreementId",
+    "serviceScope",
+    "slaRules",
+    "abuseRules",
+    "disputeWindowSec",
+    "evidenceWindowSec",
+    "remedyRules",
+    "judgeFeePercent",
+    "clauseHash"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "clauseId": { "type": "string", "minLength": 1 },
+    "chainId": { "type": "integer", "minimum": 1 },
+    "contractAddress": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "agreementId": { "type": "string", "minLength": 1 },
+    "serviceScope": { "type": "string", "minLength": 1 },
+    "slaRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ruleId", "metric", "operator", "value", "unit"],
+        "properties": {
+          "ruleId": { "type": "string" },
+          "metric": { "type": "string" },
+          "operator": { "type": "string" },
+          "value": { "type": ["number", "integer", "string"] },
+          "unit": { "type": "string" }
+        }
+      }
+    },
+    "abuseRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ruleId", "metric", "operator", "value", "unit"],
+        "properties": {
+          "ruleId": { "type": "string" },
+          "metric": { "type": "string" },
+          "operator": { "type": "string" },
+          "value": { "type": ["number", "integer", "string"] },
+          "unit": { "type": "string" }
+        }
+      }
+    },
+    "disputeWindowSec": { "type": "integer", "minimum": 1 },
+    "evidenceWindowSec": { "type": "integer", "minimum": 1 },
+    "remedyRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["condition", "action", "percent"],
+        "properties": {
+          "condition": { "type": "string" },
+          "action": { "type": "string" },
+          "percent": { "type": "number", "minimum": 0, "maximum": 100 }
+        }
+      }
+    },
+    "judgeFeePercent": { "type": "number", "minimum": 0, "maximum": 100 },
+    "clauseHash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" }
+  }
+}

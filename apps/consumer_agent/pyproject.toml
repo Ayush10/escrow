@@ -1,0 +1,22 @@
+[project]
+name = "consumer-agent"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "eth-account>=0.13.0",
+  "httpx>=0.27.0",
+  "requests>=2.32.0",
+  "x402>=2.2.0",
+  "verdict-protocol",
+]
+
+[project.scripts]
+consumer-happy = "consumer_agent.run_happy_path:main"
+consumer-dispute = "consumer_agent.run_dispute_path:main"
+
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/consumer_agent"]

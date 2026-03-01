@@ -1,0 +1,155 @@
+[
+  {
+    "inputs": [
+      { "internalType": "address", "name": "_judge", "type": "address" },
+      { "internalType": "uint256", "name": "_minDeposit", "type": "uint256" },
+      { "internalType": "uint256", "name": "_judgeFee", "type": "uint256" },
+      { "internalType": "address", "name": "_identityRegistry", "type": "address" },
+      { "internalType": "address", "name": "_reputationRegistry", "type": "address" },
+      { "internalType": "bool", "name": "_requireIdentity", "type": "bool" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "agent", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "newBalance", "type": "uint256" }
+    ],
+    "name": "Deposited",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "agent", "type": "address" },
+      { "indexed": true, "internalType": "bytes32", "name": "txKey", "type": "bytes32" },
+      { "indexed": false, "internalType": "bytes32", "name": "evidenceHash", "type": "bytes32" }
+    ],
+    "name": "EvidenceCommitted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "disputeId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "plaintiff", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "defendant", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "stake", "type": "uint256" }
+    ],
+    "name": "DisputeFiled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "disputeId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "winner", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "loser", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "award", "type": "uint256" }
+    ],
+    "name": "RulingSubmitted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "agent", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "newBalance", "type": "uint256" }
+    ],
+    "name": "Withdrawn",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "deposit",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "bytes32", "name": "txKey", "type": "bytes32" },
+      { "internalType": "bytes32", "name": "evidenceHash", "type": "bytes32" }
+    ],
+    "name": "commitEvidence",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "defendant", "type": "address" },
+      { "internalType": "uint256", "name": "stake", "type": "uint256" },
+      { "internalType": "bytes32", "name": "plaintiffEvidence", "type": "bytes32" }
+    ],
+    "name": "fileDispute",
+    "outputs": [
+      { "internalType": "uint256", "name": "", "type": "uint256" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "disputeId", "type": "uint256" },
+      { "internalType": "bytes32", "name": "evidence", "type": "bytes32" }
+    ],
+    "name": "respondDispute",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "disputeId", "type": "uint256" },
+      { "internalType": "address", "name": "winner", "type": "address" }
+    ],
+    "name": "submitRuling",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "withdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "disputeId", "type": "uint256" }
+    ],
+    "name": "getDispute",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "address", "name": "plaintiff", "type": "address" },
+          { "internalType": "address", "name": "defendant", "type": "address" },
+          { "internalType": "uint256", "name": "plaintiffStake", "type": "uint256" },
+          { "internalType": "uint256", "name": "defendantStake", "type": "uint256" },
+          { "internalType": "bytes32", "name": "plaintiffEvidence", "type": "bytes32" },
+          { "internalType": "bytes32", "name": "defendantEvidence", "type": "bytes32" },
+          { "internalType": "bool", "name": "resolved", "type": "bool" },
+          { "internalType": "address", "name": "winner", "type": "address" }
+        ],
+        "internalType": "struct AgentCourt.Dispute",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  { "inputs": [], "name": "judge", "outputs": [{ "internalType": "address", "name": "", "type": "address" }], "stateMutability": "view", "type": "function" },
+  { "inputs": [], "name": "minDeposit", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+  { "inputs": [], "name": "judgeFee", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+  { "inputs": [{ "internalType": "address", "name": "agent", "type": "address" }], "name": "getBalance", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+  { "inputs": [{ "internalType": "address", "name": "agent", "type": "address" }], "name": "isEligible", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "view", "type": "function" }
+]

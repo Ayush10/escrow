@@ -1,0 +1,21 @@
+[project]
+name = "evidence-service"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.112.0",
+  "httpx>=0.27.0",
+  "pydantic>=2.7.0",
+  "uvicorn>=0.30.0",
+  "verdict-protocol",
+]
+
+[project.scripts]
+evidence-service = "evidence_service.server:main"
+
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/evidence_service"]

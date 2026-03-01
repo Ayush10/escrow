@@ -1,0 +1,70 @@
+[project]
+name = "verdict-protocol-monorepo"
+version = "0.1.0"
+description = "Verdict Protocol Python monorepo"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.112.0",
+  "uvicorn>=0.30.0",
+  "web3>=7.0.0",
+  "eth-account>=0.13.0",
+  "eth-utils>=5.0.0",
+  "pydantic>=2.7.0",
+  "jsonschema>=4.0.0",
+  "anthropic>=0.44.0",
+  "python-telegram-bot>=21.0.0",
+  "x402>=2.2.0",
+  "requests>=2.32.0",
+  "pytest>=8.0.0",
+  "pytest-asyncio>=0.23.0",
+  "httpx>=0.27.0",
+  "ruff>=0.9.0",
+]
+
+[tool.uv.workspace]
+members = [
+  "packages/protocol",
+  "apps/evidence_service",
+  "apps/judge_service",
+  "apps/reputation_service",
+  "apps/provider_api",
+  "apps/consumer_agent",
+  "apps/demo_runner",
+]
+
+[tool.uv.sources]
+verdict-protocol = { workspace = true }
+evidence-service = { workspace = true }
+judge-service = { workspace = true }
+reputation-service = { workspace = true }
+provider-api = { workspace = true }
+consumer-agent = { workspace = true }
+demo-runner = { workspace = true }
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-q"
+pythonpath = [
+  "packages/protocol/src",
+  "apps/evidence_service/src",
+  "apps/judge_service/src",
+  "apps/reputation_service/src",
+  "apps/provider_api/src",
+  "apps/consumer_agent/src",
+  "apps/demo_runner/src",
+]
+testpaths = [
+  "packages/protocol/tests",
+  "apps/evidence_service/tests",
+  "apps/judge_service/tests",
+  "apps/reputation_service/tests",
+  "apps/provider_api/tests",
+  "apps/consumer_agent/tests",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
