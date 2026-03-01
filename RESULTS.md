@@ -1,13 +1,11 @@
 # Agent Court — Demo Results
 
-## Contract Deployed (v2 — requireIdentity=true)
-- **Address**: `0x12c9d1AC99109c6f8D39120cB185fA97f705719d`
+## Contract Deployed (v4 — USDC + ERC-8004 enforced)
+- **Address**: `0xFBf9b5293A1737AC53880d3160a64B49bA54801D`
 - **Network**: GOAT Testnet3 (Chain ID: 48816)
-- **Explorer**: https://explorer.testnet3.goat.network/address/0x12c9d1AC99109c6f8D39120cB185fA97f705719d
-- **Deploy TX**: `8cc7dc7209ec10c4684d1e6160bd043d7bba6f4c3c49ccaca34827fc7c8af37d`
-- **Deploy Cost**: 0.000000377 BTC (~$0.036)
-- **Block**: 11648121
-- **ERC-8004 ENFORCED**: Agents without on-chain identity cannot register (verified — reverts)
+- **Explorer**: https://explorer.testnet3.goat.network/address/0xFBf9b5293A1737AC53880d3160a64B49bA54801D
+- **USDC Token**: `0x29d1ee93e9ecf6e50f309f498e40a6b42d352fa1`
+- **ERC-8004 ENFORCED**: requireIdentity=true — agents without on-chain identity cannot register
 
 ## Judge Wallet
 - **Address**: `0x00289Dbbb86b64881CEA492D14178CF886b066Be`
@@ -18,8 +16,10 @@
 - **Bad Provider**: `0x9D6Cc5556aB60779193517da30E1Bb18aeEd3f80`
 
 ## Constructor Parameters
-- Judge fees: [$0.05, $0.10, $0.20] (district/appeals/supreme)
-- Min deposit: 0.0000001 BTC
+- Payment token: USDC (0x29d1ee93...)
+- Judge fees: [$0.005, $0.01, $0.02] (district/appeals/supreme) — 1/10th for testing
+- Production fees: [$0.05, $0.10, $0.20]
+- Min deposit: 0.01 USDC
 - Service fee rate: 1% (100 basis points)
 - Identity registry: 0x556089008Fc0a60cD09390Eca93477ca254A5522
 - Reputation registry: 0x52B2e79558ea853D58C2Ac5Ddf9a4387d942b4B4
@@ -67,8 +67,10 @@
 - ✅ AI judge tested across all 3 tiers (Haiku/Sonnet/Opus via Anthropic API)
 - ✅ Full lifecycle: ERC-8004 → register → service → request → fulfill → confirm/dispute → ruling
 - ✅ Tier escalation: dispute losses increase judge fees ($0.05 → $0.10 → $0.20)
-- ⚠️ Judge not yet wired to on-chain (demo calls submitRuling directly, app.py bridges but not in demo flow)
-- ⚠️ Reputation registry updates are best-effort (try/catch in contract)
+- ✅ Judge wired through server — demo calls /dispute/argue, /dispute/respond, /rule endpoints
+- ✅ USDC payments — all transfers visible on GOAT dashboard
+- ✅ Withdraw works — agents pull real USDC from contract
+- ✅ ERC-8004 reputation via giveFeedback() (best-effort, try/catch in contract)
 
 ## What's Built
 1. **AgentCourt.sol** — singleton clearinghouse contract (deployed, live)
