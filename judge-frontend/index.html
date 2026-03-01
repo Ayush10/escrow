@@ -1128,44 +1128,26 @@
 </div></div><nav class="sidebar-nav"><button class="tab-btn active" data-tab="tab-control">Control Panel</button><button class="tab-btn" data-tab="tab-court">Court Dashboard</button><button class="tab-btn" data-tab="tab-network">Network Explorer</button><button class="tab-btn" id="themeToggle" style="margin-top: auto; justify-content: center; gap: 8px;">☾ Dark Mode</button></nav><div class="footer">
         Source:
         <a class="inline-link" href="https://github.com/Ayush10/escrow" target="_blank">Ayush10/escrow</a>
-</div></aside><main class="main-content"><div class="tab-pane active" id="tab-control"><div class="hero">
+</div></aside><main class="main-content"><div class="tab-pane active" id="tab-control"><div class="hero" style="align-items: center; padding: 20px 32px;">
 <div class="hero-left">
-<h1>Verdict Protocol Live Demo</h1>
-<p>
+<h1 style="font-size: 24px;">Verdict Protocol Live Demo</h1>
+<p style="margin-top: 4px; font-size: 13px;">
             Real-time demo runner for x402 payments, on-chain escrow/disputes on
             GOAT, evidence anchoring, judge decisions, and reputation updates.
           </p>
 </div>
-<div class="hero-right">
-<div class="pill">
+<div class="hero-right" style="flex-direction: row; align-items: center; gap: 16px;">
+
+
+
+<div class="row" style="margin-top: 0;"><input id="runnerUrlInput" type="hidden" value="http://127.0.0.1:4004"/><button class="brand" id="connectBtn">Connect Server</button></div><div class="pill">
 <span class="dot warn" id="runnerDot"></span>
 <span id="runnerLabel">runner: not connected</span>
-</div>
-<div class="sub mono" id="contractLine" style="margin-top: 10px">
+</div><div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 11px;"><div class="sub mono" id="contractLine" style="margin: 0;">
             contract: -
-          </div>
-<a class="inline-link" href="https://explorer.testnet3.goat.network" id="explorerLink" style="display: inline-block; margin-top: 8px" target="_blank">open GOAT explorer</a>
-</div>
-</div><div class="grid top">
-<div class="panel glass">
-<h2>Connection</h2>
-<div class="sub">
-            Set runner URL, then connect. If you run on another host/IP, update
-            this first.
-          </div>
-<div class="row" style="margin-top: 10px">
-<input class="grow mono" id="runnerUrlInput"/>
-<button class="brand" id="connectBtn">Connect</button>
-</div>
-<div class="chips" id="quickUrls"></div>
-<div class="status-banner warn" id="connectionBanner">
-            Not connected. Start runner and click Connect.
-          </div>
-<div class="sub mono" style="margin-top: 8px">
-            runner command: `PYTHONPATH=apps/demo_runner/src uv run python -m
-            demo_runner.server`
-          </div>
-</div>
+          </div><a class="inline-link" href="https://explorer.testnet3.goat.network" id="explorerLink" style="margin: 0;" target="_blank">open GOAT explorer</a></div></div>
+</div><div class="grid top" style="grid-template-columns: 1fr 1fr;">
+
 <div class="panel glass">
 <h2>Demo Controls</h2>
 <div class="sub">One click for Happy, Dispute, or Full autoplay.</div>
@@ -1236,7 +1218,7 @@
 </table>
 </div>
 </div>
-</div></div></div><div class="tab-pane" id="tab-court"><div class="court-dashboard">
+</div></div><div style="display: none;"><div id="quickUrls"></div><div id="connectionBanner"></div></div></div><div class="tab-pane" id="tab-court"><div class="court-dashboard">
 <div class="court-stats" id="courtStats">
 <div class="court-stat-card">
 <div class="court-stat-value brand">0</div>
