@@ -122,7 +122,8 @@ def _pick_recipient(sender: str, agent_wallets: set[str], explicit: str | None) 
         if address != sender.lower():
             return Web3.to_checksum_address(address)
     raise RuntimeError(
-        "No candidate agent wallet found from ERC-8004 logs. Set DASHBOARD_AGENT_RECIPIENT explicitly."
+        "No candidate agent wallet found from ERC-8004 logs. "
+        "Set DASHBOARD_AGENT_RECIPIENT explicitly."
     )
 
 
@@ -284,7 +285,10 @@ def main() -> None:
             "requestFaucet": request_faucet,
             "agentName": agent_name,
             "agentMetadataUriPreview": metadata_uri[:80] + "...",
-            "nextAction": "Unset DASHBOARD_PAYMENT_DRY_RUN and ensure payer has BTC gas + token balance",
+            "nextAction": (
+                "Unset DASHBOARD_PAYMENT_DRY_RUN and ensure payer has BTC gas "
+                "+ token balance"
+            ),
         }
         print(json.dumps(result, indent=2))
         return
@@ -292,7 +296,8 @@ def main() -> None:
     if request_faucet:
         if not faucet_turnstile_token:
             raise RuntimeError(
-                "Set GOAT_FAUCET_TURNSTILE_TOKEN with a valid Turnstile token to request faucet funds"
+                "Set GOAT_FAUCET_TURNSTILE_TOKEN with a valid Turnstile "
+                "token to request faucet funds"
             )
         faucet_result = _request_faucet(sender, faucet_turnstile_token)
         # Give the faucet tx a moment to confirm before balance checks.
@@ -311,7 +316,10 @@ def main() -> None:
     nonce = w3.eth.get_transaction_count(sender)
 
     if register_agent:
-        identity = w3.eth.contract(address=Web3.to_checksum_address(IDENTITY_TESTNET3), abi=IDENTITY_ABI)
+        identity = w3.eth.contract(
+            address=Web3.to_checksum_address(IDENTITY_TESTNET3),
+            abi=IDENTITY_ABI,
+        )
         registration_tx, nonce = _send_contract_tx(
             w3,
             account,
@@ -330,7 +338,8 @@ def main() -> None:
     if not dashboard_eligible:
         raise RuntimeError(
             "Transfer will not show under Agent ↔ Agent Payments. "
-            "Set DASHBOARD_REGISTER_AGENT=1 or use DASHBOARD_AGENT_RECIPIENT as a known agent wallet."
+            "Set DASHBOARD_REGISTER_AGENT=1 or use DASHBOARD_AGENT_RECIPIENT "
+            "as a known agent wallet."
         )
 
     transfer_tx, _ = _send_contract_tx(

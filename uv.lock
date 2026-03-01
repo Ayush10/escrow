@@ -594,13 +594,17 @@ name = "demo-runner"
 version = "0.1.0"
 source = { editable = "apps/demo_runner" }
 dependencies = [
+    { name = "fastapi" },
     { name = "httpx" },
+    { name = "pydantic" },
     { name = "web3" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "fastapi", specifier = ">=0.112.0" },
     { name = "httpx", specifier = ">=0.27.0" },
+    { name = "pydantic", specifier = ">=2.7.0" },
     { name = "web3", specifier = ">=7.0.0" },
 ]
 

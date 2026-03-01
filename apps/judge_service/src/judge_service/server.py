@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 from eth_utils import to_checksum_address
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from verdict_protocol import EscrowClient, compute_verdict_hash, sign_hash_eip191
 
 from .fact_extractor import extract_facts
@@ -21,8 +22,100 @@ from .verifier import verify_evidence_bundle
 from .watcher import DisputeEvent, DisputeWatcher
 
 
+def _tier_name(tier: int) -> str:
+    names = ["district", "appeals", "supreme"]
+    if 0 <= tier < len(names):
+        return names[tier]
+    return "district"
+
+
+def _hex_or_str(value: Any) -> str:
+    if hasattr(value, "hex"):
+        out = value.hex()
+    else:
+        out = str(value)
+    if out.startswith("0x"):
+        return out
+    return "0x" + out
+
+
+def _reason_line(code: str) -> str:
+    if code == "sla_breach:latency":
+        return "- SLA breach established: latency exceeded the allowed threshold."
+    if code == "clause_violated:rate_limit":
+        return "- Abuse rule violated: requests per minute exceeded contract limits."
+    if code == "hash_mismatch":
+        return "- Evidence integrity failure: receipt hashes did not match the anchored root."
+    return f"- Rule finding: {code}"
+
+
+def _deterministic_opinion(
+    *,
+    dispute_id: int,
+    tier_name: str,
+    plaintiff: str,
+    defendant: str,
+    plaintiff_evidence: str,
+    defendant_evidence: str,
+    winner: str,
+    reason_codes: list[str],
+    facts: dict[str, Any],
+    errors: list[str] | None = None,
+) -> str:
+    winner_side = "PLAINTIFF" if winner.lower() == plaintiff.lower() else "DEFENDANT"
+    loser = defendant if winner.lower() == plaintiff.lower() else plaintiff
+    finding_lines = [_reason_line(code) for code in reason_codes] or ["- No rule violations were established."]
+    integrity_lines = []
+    if errors:
+        integrity_lines.extend([f"- {msg}" for msg in errors])
+    else:
+        integrity_lines.append("- Receipt chain integrity verified against anchored evidence root.")
+    if defendant_evidence.lower() in {"0x0", "0x" + "0" * 64}:
+        integrity_lines.append("- Defendant evidence commitment is null; no counter-evidence was pre-committed.")
+
+    return "\n".join(
+        [
+            f"AGENT COURT PROTOCOL — {tier_name.upper()} DIVISION",
+            "",
+            "JUDICIAL OPINION",
+            "",
+            f"Case No. {dispute_id}",
+            f"{plaintiff} (Plaintiff) v. {defendant} (Defendant)",
+            "",
+            "I. PRELIMINARY MATTERS: EVIDENCE INTEGRITY",
+            f"- Plaintiff committed evidence hash: {plaintiff_evidence}",
+            f"- Defendant committed evidence hash: {defendant_evidence}",
+            *integrity_lines,
+            "",
+            "II. FINDINGS OF FACT",
+            f"- Request count: {facts.get('request_count', 0)}",
+            f"- Response count: {facts.get('response_count', 0)}",
+            f"- Observed latency (ms): {facts.get('latency_ms', 0)}",
+            f"- Peak requests per minute: {facts.get('peak_requests_per_minute', 0)}",
+            f"- Response format valid: {facts.get('response_format_ok', True)}",
+            "",
+            "III. APPLICATION OF SLA TERMS",
+            *finding_lines,
+            "",
+            "IV. RULING",
+            f"- Judgment for the {winner_side}: {winner}.",
+            f"- Losing party: {loser}.",
+            "- Ruling is issued under deterministic SLA checks and evidence integrity constraints.",
+            "",
+            "IT IS SO ORDERED.",
+            "The Honorable Judge, Agent Court Protocol",
+        ]
+    )
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="Judge Service", version="0.1.0")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     escrow = EscrowClient(
         rpc_url=os.environ.get("GOAT_RPC_URL", "https://rpc.testnet3.goat.network"),
@@ -57,12 +150,45 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     def health() -> dict[str, Any]:
-        return {"status": "ok", "capabilities": app.state.judge_state.escrow.capabilities()}
+        escrow = app.state.judge_state.escrow
+        sanity = escrow.contract_sanity()
+        status = "ok"
+        if (not sanity["contractHasCode"]) and (not sanity["dryRun"]):
+            status = "degraded"
+        return {
+            "status": status,
+            "capabilities": escrow.capabilities(),
+            "escrow": sanity,
+        }
+
+    @app.get("/api/health")
+    def api_health() -> dict[str, Any]:
+        # Compatibility alias for older dashboard and external watchers.
+        return health()
 
     @app.get("/verdicts")
     def verdicts() -> dict[str, Any]:
         items = app.state.judge_state.storage.list_verdicts()
         return {"count": len(items), "items": items}
+
+    @app.get("/api/verdicts")
+    def api_verdicts() -> dict[str, Any]:
+        # Compatibility alias for older frontend API shape.
+        return verdicts()
+
+    @app.get("/verdicts/{dispute_id}")
+    def get_verdict(dispute_id: int) -> dict[str, Any]:
+        verdict = app.state.judge_state.storage.get_verdict_by_dispute(dispute_id)
+        if not verdict:
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=404, detail="verdict not found")
+        return verdict
+
+    @app.get("/api/verdicts/{dispute_id}")
+    def api_get_verdict(dispute_id: int) -> dict[str, Any]:
+        # Compatibility alias for older frontend API shape.
+        return get_verdict(dispute_id)
 
     return app
 
@@ -91,15 +217,24 @@ async def _handle_dispute(state: JudgeState, event: DisputeEvent) -> None:
     if dispute is None:
         return
 
+    transaction_id: int | None = None
+    judge_fee = 0
+    plaintiff_evidence = "0x0"
+    defendant_evidence = "0x0"
+
     # Handle both old struct (plaintiff at 0) and new struct (transactionId at 0)
     if len(dispute) >= 10:
         # New AgentCourt: (transactionId, plaintiff, defendant, stake, judgeFee, tier, pEvidence, dEvidence, resolved, winner)
+        transaction_id = int(dispute[0])
         plaintiff = to_checksum_address(dispute[1])
         defendant = to_checksum_address(dispute[2])
         plaintiff_stake = int(dispute[3])
         defendant_stake = int(dispute[3])  # same stake
+        judge_fee = int(dispute[4])
         dispute_tier = int(dispute[5])
-        root_hash = dispute[6].hex() if hasattr(dispute[6], "hex") else str(dispute[6])
+        plaintiff_evidence = _hex_or_str(dispute[6])
+        defendant_evidence = _hex_or_str(dispute[7])
+        root_hash = plaintiff_evidence
     else:
         # Legacy: (plaintiff, defendant, plaintiffStake, defendantStake, evidence...)
         plaintiff = to_checksum_address(dispute[0])
@@ -107,7 +242,8 @@ async def _handle_dispute(state: JudgeState, event: DisputeEvent) -> None:
         plaintiff_stake = int(dispute[2])
         defendant_stake = int(dispute[3])
         dispute_tier = 0
-        root_hash = dispute[4].hex() if hasattr(dispute[4], "hex") else str(dispute[4])
+        plaintiff_evidence = _hex_or_str(dispute[4])
+        root_hash = plaintiff_evidence
     if not root_hash.startswith("0x"):
         root_hash = "0x" + root_hash
 
@@ -161,20 +297,43 @@ async def _handle_dispute(state: JudgeState, event: DisputeEvent) -> None:
             else:
                 winner = defendant
 
+    if not full_opinion:
+        full_opinion = _deterministic_opinion(
+            dispute_id=event.dispute_id,
+            tier_name=_tier_name(dispute_tier),
+            plaintiff=plaintiff,
+            defendant=defendant,
+            plaintiff_evidence=plaintiff_evidence,
+            defendant_evidence=defendant_evidence,
+            winner=winner,
+            reason_codes=reason_codes,
+            facts=facts,
+            errors=errors if not ok else None,
+        )
+
     loser = defendant if winner == plaintiff else plaintiff
 
     verdict = {
         "schemaVersion": "1.0.0",
         "verdictId": str(uuid.uuid4()),
         "disputeId": str(event.dispute_id),
+        "transactionId": str(transaction_id) if transaction_id is not None else None,
         "chainId": int(os.environ.get("GOAT_CHAIN_ID", "48816")),
         "contractAddress": os.environ.get("ESCROW_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000000"),
         "agreementId": agreement_id,
         "clauseHash": clause["clauseHash"],
+        "plaintiff": plaintiff,
+        "defendant": defendant,
+        "plaintiffEvidence": plaintiff_evidence,
+        "defendantEvidence": defendant_evidence,
+        "stake": str(plaintiff_stake),
+        "defendantStake": str(defendant_stake),
+        "tier": dispute_tier,
+        "courtTier": _tier_name(dispute_tier),
         "transfers": [
             {"to": winner, "amount": str(plaintiff_stake + defendant_stake), "reason": "dispute_resolution"}
         ],
-        "judgeFee": "0",
+        "judgeFee": str(judge_fee),
         "reasonCodes": reason_codes,
         "evidenceReceiptIds": [r["receiptId"] for r in receipts],
         "facts": facts,

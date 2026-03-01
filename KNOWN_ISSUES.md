@@ -1,28 +1,47 @@
 # Known Issues & Limitations
 
-What actually works end-to-end, for real:
-- Two agents deposit real USDC, transact, file disputes, submit arguments through the public API, AI judge generates an opinion, ruling gets submitted on-chain. This is real and it worked (dispute #2, tx 0xcb6cb644).
+This file tracks known limitations observed in live and dry-run demos.
+It is intentionally candid so contributors can prioritize real fixes.
 
-What doesn't work / is fake / would break in real life:
+What currently works end-to-end:
+- Python services run with one-click orchestration (`demo_runner`) and frontend timeline.
+- Happy and dispute flows execute with evidence receipts, anchoring, judge processing, and reputation updates.
+- x402 flow is wired for Base Sepolia, with local mock fallback for development.
+- GOAT dashboard payment helper can publish testnet transfer activity.
 
-1. **There's no way for the defendant to commit evidence on-chain.** The contract's `commitEvidence` takes `(bytes32, bytes32)` — plaintiff and defendant hashes together. But there's no flow where the defendant separately commits their hash before the dispute is filed. Every dispute so far has the defendant's evidence hash as `0x000...000`. The judge notices this and holds it against the defendant every time.
+What remains limited or non-production:
 
-2. **The tiered escalation is broken.** The contract uses `disputeLossCount` per address and caps tier at `min(losses, 2)`. But it's per-address, not per-dispute-chain. There's no concept of "appealing dispute #2" — you just file a NEW dispute about a NEW transaction. The "appeals" and "supreme" tiers are just more expensive judges for repeat losers, not actual appeals of prior rulings.
+1. **Evidence trust boundary is still mixed.**
+   On-chain evidence is hash-based, but most semantic dispute facts still come from off-chain payloads.
+   Full trustless evidence reveal/verification remains incomplete.
 
-3. **The AI judge has no access to the actual evidence.** It gets the hashes but can't verify them against anything. The arguments are just text that anyone can submit — no cryptographic link between what the agents claim happened and what's on-chain. The evidence service exists in the monorepo but isn't deployed or connected.
+2. **Judge authority is single-key.**
+   Rulings are submitted by a single judge signer. There is no multisig or quorum path.
 
-4. **Anyone can submit arguments for either side.** There's zero auth on `/api/disputes/{id}/argue` and `/api/disputes/{id}/respond`. No signature verification, no address check. Anyone could submit the defendant's argument as the plaintiff.
+3. **Dispute lifecycle depends on off-chain timing.**
+   Service watcher timing and polling can affect when a dispute is processed.
+   This is acceptable for hackathon flows but needs stricter on-chain windows for production.
 
-5. **The judge fee isn't actually paid to the judge.** The contract deducts it from the loser's balance but it goes into the contract, not to the judge's wallet. There's no `withdrawJudgeFee()`.
+4. **Demo contract address drift can cause confusion.**
+   Different branches/docs referenced different addresses.
+   Runtime is now env-driven, but docs still need consolidation to one canonical deployed contract.
 
-6. **The watcher auto-processed dispute #1 before arguments arrived** and submitted the wrong ruling on-chain. The 60s grace period is a band-aid — in real life you'd need the contract to enforce an argument submission window.
+5. **x402 in local mode can be mocked.**
+   `X402_ALLOW_MOCK=1` is useful for repeatable demos but is not a real payment settlement path.
 
-7. **No service discovery.** An agent has no way to find services to use. The contract stores `termsHash` as a bytes32 but there's no way to read what the terms actually are without the off-chain evidence service.
+6. **Backend health is required for frontend autoplay.**
+   Frontend controls depend on runner/service availability.
+   The UI now handles failures better, but missing services still block full execution by design.
 
-8. **Single judge, single key.** One private key controls all rulings. If it's compromised, every dispute can be manipulated. There's no multisig, no judge rotation, no randomized selection.
+7. **Reputation semantics are simple.**
+   Current scoring is deterministic and hackathon-focused; anti-sybil and historical weighting are not implemented.
 
-9. **No appeal mechanism in the contract.** There's no `fileAppeal(disputeId)`. The "tiered court" is just repeat-offender escalation, not real appellate review.
+8. **No production-grade key management in repo scripts.**
+   Env-based secret loading exists, but HSM/KMS/rotation workflows are not implemented here.
 
-10. **The USDC amounts are tiny test values.** $0.005 per service, $0.001 stakes. The gas to file a dispute costs more than the dispute is worth.
+9. **Legacy branches contain experimental scripts.**
+   Some legacy scripts were useful for rapid experiments but are not the canonical runtime path.
+   `apps/*` services and `judge-frontend/index.html` are the authoritative flow.
 
-**Bottom line:** It's a working prototype that demonstrates the concept. The on-chain parts are real. The AI judge is real. But the evidence integrity layer — the thing that would make this trustworthy — is basically missing. An agent could lie about anything in its arguments and the judge has no way to verify.
+10. **Test coverage is focused, not exhaustive.**
+   Core protocol tests pass, but full multi-service/network integration coverage still needs expansion.

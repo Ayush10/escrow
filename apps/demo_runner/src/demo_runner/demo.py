@@ -6,6 +6,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
 
@@ -16,6 +17,34 @@ class ServiceProc:
     cmd: list[str]
     health_url: str
     proc: subprocess.Popen | None = None
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[4]
+
+
+def _module_pythonpath() -> str:
+    root = _repo_root()
+    return os.pathsep.join(
+        [
+            str(root / "packages" / "protocol" / "src"),
+            str(root / "apps" / "evidence_service" / "src"),
+            str(root / "apps" / "provider_api" / "src"),
+            str(root / "apps" / "judge_service" / "src"),
+            str(root / "apps" / "reputation_service" / "src"),
+            str(root / "apps" / "consumer_agent" / "src"),
+        ]
+    )
+
+
+def _service_env() -> dict[str, str]:
+    env = os.environ.copy()
+    existing = env.get("PYTHONPATH", "")
+    extra_paths = [_module_pythonpath()]
+    if existing:
+        extra_paths.append(existing)
+    env["PYTHONPATH"] = os.pathsep.join(extra_paths)
+    return env
 
 
 def _wait_for_health(url: str, timeout: float = 45.0) -> None:
@@ -33,7 +62,7 @@ def _wait_for_health(url: str, timeout: float = 45.0) -> None:
 
 
 def _run_json_command(cmd: list[str]) -> dict:
-    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    result = subprocess.run(cmd, check=True, capture_output=True, text=True, env=_service_env())
     stdout = result.stdout.strip()
     return json.loads(stdout)
 
@@ -47,22 +76,22 @@ def main() -> None:
     services = [
         ServiceProc(
             name="evidence",
-            cmd=["uv", "run", "--package", "evidence-service", "evidence-service"],
+            cmd=[sys.executable, "-m", "evidence_service.server"],
             health_url="http://127.0.0.1:4001/health",
         ),
         ServiceProc(
             name="provider",
-            cmd=["uv", "run", "--package", "provider-api", "provider-api"],
+            cmd=[sys.executable, "-m", "provider_api.server"],
             health_url="http://127.0.0.1:4000/health",
         ),
         ServiceProc(
             name="judge",
-            cmd=["uv", "run", "--package", "judge-service", "judge-service"],
+            cmd=[sys.executable, "-m", "judge_service.server"],
             health_url="http://127.0.0.1:4002/health",
         ),
         ServiceProc(
             name="reputation",
-            cmd=["uv", "run", "--package", "reputation-service", "reputation-service"],
+            cmd=[sys.executable, "-m", "reputation_service.api"],
             health_url="http://127.0.0.1:4003/health",
         ),
     ]
@@ -70,14 +99,19 @@ def main() -> None:
     procs: list[subprocess.Popen] = []
     try:
         for service in services:
-            service.proc = subprocess.Popen(service.cmd, stdout=sys.stdout, stderr=sys.stderr)
+            service.proc = subprocess.Popen(
+                service.cmd,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+                env=_service_env(),
+            )
             procs.append(service.proc)
 
         for service in services:
             _wait_for_health(service.health_url)
 
-        happy = _run_json_command(["uv", "run", "--package", "consumer-agent", "consumer-happy"])
-        dispute = _run_json_command(["uv", "run", "--package", "consumer-agent", "consumer-dispute"])
+        happy = _run_json_command([sys.executable, "-m", "consumer_agent.run_happy_path"])
+        dispute = _run_json_command([sys.executable, "-m", "consumer_agent.run_dispute_path"])
 
         with httpx.Client(timeout=10) as client:
             verdicts = client.get("http://127.0.0.1:4002/verdicts").json()

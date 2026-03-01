@@ -85,3 +85,14 @@ class JudgeStorage:
             payload["status"] = row["status"]
             result.append(payload)
         return result
+
+    def get_verdict_by_dispute(self, dispute_id: int | str) -> dict[str, Any] | None:
+        row = self.conn.execute(
+            "SELECT payload_json, status FROM verdicts WHERE dispute_id = ? ORDER BY created_at DESC LIMIT 1",
+            (str(dispute_id),),
+        ).fetchone()
+        if not row:
+            return None
+        payload = json.loads(row["payload_json"])
+        payload["status"] = row["status"]
+        return payload

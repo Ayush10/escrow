@@ -93,6 +93,23 @@ class EvidenceStorage:
             return None
         return json.loads(row["payload_json"])
 
+    def list_clauses(self, limit: int = 200) -> list[dict[str, Any]]:
+        rows = self.conn.execute(
+            """
+            SELECT payload_json, created_at
+            FROM clauses
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (int(limit),),
+        ).fetchall()
+        items: list[dict[str, Any]] = []
+        for row in rows:
+            payload = json.loads(row["payload_json"])
+            payload["createdAt"] = int(row["created_at"]) * 1000
+            items.append(payload)
+        return items
+
     def store_receipt(self, receipt: dict[str, Any]) -> None:
         self.conn.execute(
             """

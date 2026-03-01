@@ -1,761 +1,2109 @@
-<!DOCTYPE html>
-<html><head>
-<meta charset="utf-8">
-<title>Agent Court</title>
-<script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
-:root {
-  --bg: #0a0a0f;
-  --bg2: #12121a;
-  --bg3: #1a1a28;
-  --border: #1e1e30;
-  --accent: #e94560;
-  --accent2: #c73652;
-  --green: #00d4aa;
-  --green-dim: #0a3d30;
-  --yellow: #f0c040;
-  --blue: #58a6ff;
-  --purple: #bc8cff;
-  --orange: #ffa657;
-  --red: #e94560;
-  --text: #e0e0e8;
-  --text2: #8b8ba0;
-  --text3: #55556a;
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-
-/* HEADER */
-.header {
-  padding: 0 32px;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg2);
-}
-.header-left { display: flex; align-items: center; gap: 16px; }
-.logo { display: flex; align-items: center; gap: 10px; }
-.logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: white; }
-.logo-text { font-size: 18px; font-weight: 700; color: var(--text); }
-.logo-text span { color: var(--accent); }
-.chain-badge { padding: 4px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; font-size: 11px; color: var(--text2); font-family: 'JetBrains Mono', monospace; }
-.header-right { display: flex; align-items: center; gap: 12px; }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; }
-.status-dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); }
-.status-dot.off { background: var(--red); }
-.status-text { font-size: 12px; color: var(--text2); font-family: 'JetBrains Mono', monospace; }
-
-/* NAV */
-.nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--bg2); padding: 0 32px; }
-.nav-tab {
-  padding: 12px 20px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text2);
-  border-bottom: 2px solid transparent;
-  transition: all 0.15s;
-}
-.nav-tab:hover { color: var(--text); }
-.nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-
-/* LAYOUT */
-.main { max-width: 1100px; margin: 0 auto; padding: 24px 32px; }
-.panel { display: none; }
-.panel.active { display: block; }
-
-/* STATS ROW */
-.stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 28px; }
-.stat-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
-  text-align: center;
-}
-.stat-val { font-size: 28px; font-weight: 700; color: var(--text); font-family: 'JetBrains Mono', monospace; }
-.stat-val.green { color: var(--green); }
-.stat-val.yellow { color: var(--yellow); }
-.stat-val.red { color: var(--accent); }
-.stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
-
-/* SECTION */
-.section { margin-bottom: 28px; }
-.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.section-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; }
-.section-badge { padding: 2px 8px; background: var(--bg3); border-radius: 8px; font-size: 11px; color: var(--text3); }
-
-/* DISPUTE CARD */
-.dispute-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin-bottom: 12px;
-  overflow: hidden;
-  transition: border-color 0.15s;
-}
-.dispute-card:hover { border-color: #2a2a40; }
-.dispute-card.open { border-left: 3px solid var(--yellow); }
-.dispute-card.resolved { border-left: 3px solid var(--green); }
-
-.dispute-top {
-  padding: 16px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  cursor: pointer;
-}
-.dispute-meta { flex: 1; }
-.dispute-id { font-size: 12px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-bottom: 6px; }
-.dispute-parties { display: flex; gap: 24px; font-size: 13px; }
-.party-label { color: var(--text3); font-size: 11px; text-transform: uppercase; }
-.party-addr { color: var(--blue); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
-.dispute-right { text-align: right; }
-.dispute-stake { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--yellow); }
-.dispute-tier {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  margin-top: 4px;
-}
-.tier-district { background: #1a2a1a; color: var(--green); }
-.tier-appeals { background: #2a2a1a; color: var(--yellow); }
-.tier-supreme { background: #2a1a2a; color: var(--purple); }
-.dispute-status {
-  padding: 3px 10px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-.status-open { background: #3d3a0a; color: var(--yellow); }
-.status-resolved { background: var(--green-dim); color: var(--green); }
-
-/* RULING / OPINION */
-.dispute-detail { display: none; border-top: 1px solid var(--border); }
-.dispute-detail.show { display: block; }
-
-.ruling-banner {
-  padding: 12px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.ruling-banner.plaintiff { background: linear-gradient(90deg, #0a3d30 0%, transparent 100%); }
-.ruling-banner.defendant { background: linear-gradient(90deg, #3d0a20 0%, transparent 100%); }
-.ruling-verdict { font-size: 14px; font-weight: 700; }
-.ruling-verdict.plaintiff { color: var(--green); }
-.ruling-verdict.defendant { color: var(--red); }
-
-.opinion-container {
-  padding: 20px;
-  background: var(--bg);
-  border-top: 1px solid var(--border);
-}
-.opinion-toggle {
-  font-size: 12px;
-  color: var(--accent);
-  cursor: pointer;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.opinion-toggle:hover { text-decoration: underline; }
-.opinion-text {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--text2);
-  white-space: pre-wrap;
-  max-height: 500px;
-  overflow-y: auto;
-  padding: 16px;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-}
-.opinion-text h1, .opinion-text h2, .opinion-text h3 { color: var(--text); margin: 12px 0 6px 0; }
-.opinion-text strong { color: var(--text); }
-
-/* AGENTS TAB */
-.agent-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 12px;
-}
-.agent-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.agent-addr { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--blue); }
-.agent-role { padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-.role-judge { background: #2a1a2a; color: var(--purple); }
-.role-agent { background: #1a2a3a; color: var(--blue); }
-.agent-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.agent-stat { text-align: center; }
-.agent-stat-val { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 600; }
-.agent-stat-label { font-size: 11px; color: var(--text3); margin-top: 2px; }
-
-/* COURT TIERS */
-.tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
-.tier-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 20px;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-}
-.tier-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-}
-.tier-card.district::before { background: var(--green); }
-.tier-card.appeals::before { background: var(--yellow); }
-.tier-card.supreme::before { background: var(--purple); }
-.tier-name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
-.tier-model { font-size: 12px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-bottom: 8px; }
-.tier-fee { font-size: 24px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
-.tier-fee.green { color: var(--green); }
-.tier-fee.yellow { color: var(--yellow); }
-.tier-fee.purple { color: var(--purple); }
-
-/* SERVICES TAB */
-.service-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px 20px;
-  margin-bottom: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.service-info { flex: 1; }
-.service-id { font-size: 12px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
-.service-provider { font-size: 12px; color: var(--blue); font-family: 'JetBrains Mono', monospace; margin-top: 4px; }
-.service-price { font-family: 'JetBrains Mono', monospace; font-size: 16px; color: var(--yellow); }
-.service-stats-row { display: flex; gap: 16px; font-size: 12px; color: var(--text3); }
-
-/* LOADING */
-.loading { text-align: center; padding: 40px; color: var(--text3); }
-.loading-spinner {
-  width: 24px; height: 24px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 12px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* FOOTER */
-.footer {
-  text-align: center;
-  padding: 24px;
-  font-size: 11px;
-  color: var(--text3);
-  border-top: 1px solid var(--border);
-  margin-top: 40px;
-}
-.footer a { color: var(--accent); text-decoration: none; }
-.footer a:hover { text-decoration: underline; }
-
-/* RESPONSIVE */
-@media (max-width: 768px) {
-  .stats-row { grid-template-columns: repeat(2, 1fr); }
-  .tiers { grid-template-columns: 1fr; }
-  .agent-stats { grid-template-columns: repeat(2, 1fr); }
-  .main { padding: 16px; }
-}
-</style>
-</head><body>
-
-<div class="header">
-  <div class="header-left">
-    <div class="logo">
-      <div class="logo-icon">AC</div>
-      <div class="logo-text">Agent <span>Court</span></div>
-    </div>
-    <div class="chain-badge" id="chainBadge">GOAT Testnet3 (48816)</div>
-  </div>
-  <div class="header-right">
-    <div class="status-dot off" id="statusDot"></div>
-    <span class="status-text" id="statusText">Connecting...</span>
-  </div>
-</div>
-
-<div class="nav">
-  <div class="nav-tab active" onclick="switchTab('overview')">Overview</div>
-  <div class="nav-tab" onclick="switchTab('disputes')">Disputes</div>
-  <div class="nav-tab" onclick="switchTab('agents')">Agents</div>
-  <div class="nav-tab" onclick="switchTab('services')">Services</div>
-</div>
-
-<div class="main">
-  <!-- OVERVIEW -->
-  <div class="panel active" id="panel-overview">
-    <div class="stats-row" id="statsRow">
-      <div class="stat-card"><div class="stat-val" id="statDisputes">-</div><div class="stat-label">Disputes</div></div>
-      <div class="stat-card"><div class="stat-val green" id="statResolved">-</div><div class="stat-label">Resolved</div></div>
-      <div class="stat-card"><div class="stat-val yellow" id="statServices">-</div><div class="stat-label">Services</div></div>
-      <div class="stat-card"><div class="stat-val" id="statTransactions">-</div><div class="stat-label">Transactions</div></div>
-      <div class="stat-card"><div class="stat-val green" id="statContractBal">-</div><div class="stat-label">USDC in Escrow</div></div>
-    </div>
-
-    <div class="section">
-      <div class="section-header">
-        <span class="section-title">Court System</span>
-      </div>
-      <div class="tiers">
-        <div class="tier-card district">
-          <div class="tier-name">District Court</div>
-          <div class="tier-model">claude-haiku-4-5</div>
-          <div class="tier-fee green" id="feeDistrict">$0.05</div>
-          <div class="stat-label" style="margin-top:8px">First hearing</div>
-        </div>
-        <div class="tier-card appeals">
-          <div class="tier-name">Appeals Court</div>
-          <div class="tier-model">claude-sonnet-4-6</div>
-          <div class="tier-fee yellow" id="feeAppeals">$0.10</div>
-          <div class="stat-label" style="margin-top:8px">1 prior loss</div>
-        </div>
-        <div class="tier-card supreme">
-          <div class="tier-name">Supreme Court</div>
-          <div class="tier-model">claude-opus-4-6</div>
-          <div class="tier-fee purple" id="feeSupreme">$0.20</div>
-          <div class="stat-label" style="margin-top:8px">Final ruling</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-header">
-        <span class="section-title">Recent Disputes</span>
-      </div>
-      <div id="recentDisputes"><div class="loading"><div class="loading-spinner"></div>Loading from chain...</div></div>
-    </div>
-  </div>
-
-  <!-- DISPUTES -->
-  <div class="panel" id="panel-disputes">
-    <div class="section">
-      <div class="section-header">
-        <span class="section-title">All Disputes</span>
-        <span class="section-badge" id="disputeCountBadge">0</span>
-      </div>
-      <div id="allDisputes"><div class="loading"><div class="loading-spinner"></div>Loading...</div></div>
-    </div>
-  </div>
-
-  <!-- AGENTS -->
-  <div class="panel" id="panel-agents">
-    <div class="section">
-      <div class="section-header">
-        <span class="section-title">Registered Agents</span>
-      </div>
-      <div id="agentsList"><div class="loading"><div class="loading-spinner"></div>Loading...</div></div>
-    </div>
-  </div>
-
-  <!-- SERVICES -->
-  <div class="panel" id="panel-services">
-    <div class="section">
-      <div class="section-header">
-        <span class="section-title">Registered Services</span>
-        <span class="section-badge" id="serviceCountBadge">0</span>
-      </div>
-      <div id="servicesList"><div class="loading"><div class="loading-spinner"></div>Loading...</div></div>
-    </div>
-  </div>
-</div>
-
-<div class="footer">
-  Agent Court on <a href="https://explorer.testnet3.goat.network/address/CONTRACT_ADDR" id="explorerLink" target="_blank">GOAT Testnet3</a>
-  &nbsp;|&nbsp; <a href="https://github.com/Ayush10/escrow" target="_blank">GitHub</a>
-  &nbsp;|&nbsp; ERC-8004 Identity Enforced
-</div>
-
-<script>
-// --- CONFIG ---
-const RPC = 'https://rpc.testnet3.goat.network';
-const CONTRACT = '0xFBf9b5293A1737AC53880d3160a64B49bA54801D';
-const USDC_ADDR = '0x29d1ee93e9ecf6e50f309f498e40a6b42d352fa1';
-const VERDICT_API = '/api'; // real verdict API proxied through nginx
-const EXPLORER = 'https://explorer.testnet3.goat.network';
-
-const COURT_TIERS = ['district', 'appeals', 'supreme'];
-const TIER_MODELS = ['claude-haiku-4-5', 'claude-sonnet-4-6', 'claude-opus-4-6'];
-const TIER_CLASSES = ['tier-district', 'tier-appeals', 'tier-supreme'];
-
-// Minimal ABI — read-only functions we need
-const ABI = [
-  "function disputeCount() view returns (uint256)",
-  "function serviceCount() view returns (uint256)",
-  "function transactionCount() view returns (uint256)",
-  "function judge() view returns (address)",
-  "function minDeposit() view returns (uint256)",
-  "function judgeFees(uint256) view returns (uint256)",
-  "function paymentToken() view returns (address)",
-  "function requireIdentity() view returns (bool)",
-  "function getDispute(uint256 disputeId) view returns (tuple(uint256 transactionId, address plaintiff, address defendant, uint256 stake, uint256 judgeFee, uint8 tier, bytes32 plaintiffEvidence, bytes32 defendantEvidence, bool resolved, address winner))",
-  "function getService(uint256 serviceId) view returns (tuple(address provider, bytes32 termsHash, uint256 price, uint256 bondRequired, uint8 status, uint256 totalCalls, uint256 totalDisputes))",
-  "function getTransaction(uint256 txId) view returns (tuple(uint256 serviceId, address consumer, address provider, uint256 payment, bytes32 requestHash, bytes32 responseHash, uint8 status, uint64 createdAt, uint64 fulfilledAt, uint256 disputeId))",
-  "function getBalance(address agent) view returns (uint256)",
-  "function getStats(address agent) view returns (tuple(uint256 totalTransactions, uint256 successfulTransactions, uint256 disputesWon, uint256 disputesLost, uint256 totalEarned, uint256 totalSpent, uint64 registeredAt))",
-  "function getSuccessRate(address agent) view returns (uint256)",
-  "function balances(address) view returns (uint256)",
-  "function disputeLossCount(address) view returns (uint8)",
-  "function isRegistered(address agent) view returns (bool)",
-];
-
-const USDC_ABI = [
-  "function balanceOf(address) view returns (uint256)",
-];
-
-let provider, contract, usdcContract;
-let disputes = [];
-let knownAgents = new Set();
-
-// --- INIT ---
-async function init() {
-  try {
-    provider = new ethers.JsonRpcProvider(RPC);
-    contract = new ethers.Contract(CONTRACT, ABI, provider);
-    usdcContract = new ethers.Contract(USDC_ADDR, USDC_ABI, provider);
-
-    document.getElementById('statusDot').className = 'status-dot on';
-    document.getElementById('statusText').textContent = shortAddr(CONTRACT);
-    document.getElementById('explorerLink').href = `${EXPLORER}/address/${CONTRACT}`;
-
-    await Promise.all([loadStats(), loadDisputes(), loadServices()]);
-  } catch (e) {
-    document.getElementById('statusText').textContent = 'Connection failed';
-    console.error(e);
-  }
-}
-
-// --- HELPERS ---
-function shortAddr(a) { return a.slice(0, 6) + '...' + a.slice(-4); }
-function formatUSDC(wei) { return (Number(wei) / 1e6).toFixed(wei > 0 ? 4 : 2); }
-function tierName(t) { return COURT_TIERS[t] || 'district'; }
-function tierClass(t) { return TIER_CLASSES[t] || TIER_CLASSES[0]; }
-function zeroHash(h) { return !h || h === '0x' + '0'.repeat(64); }
-
-// --- LOAD DATA ---
-async function loadStats() {
-  const [dCount, sCount, tCount] = await Promise.all([
-    contract.disputeCount(),
-    contract.serviceCount(),
-    contract.transactionCount(),
-  ]);
-  document.getElementById('statDisputes').textContent = Number(dCount);
-  document.getElementById('statServices').textContent = Number(sCount);
-  document.getElementById('statTransactions').textContent = Number(tCount);
-
-  // USDC balance of contract
-  try {
-    const bal = await usdcContract.balanceOf(CONTRACT);
-    document.getElementById('statContractBal').textContent = '$' + formatUSDC(bal);
-  } catch(e) {
-    document.getElementById('statContractBal').textContent = '-';
-  }
-
-  // Judge fees
-  try {
-    const [f0, f1, f2] = await Promise.all([
-      contract.judgeFees(0), contract.judgeFees(1), contract.judgeFees(2),
-    ]);
-    document.getElementById('feeDistrict').textContent = '$' + formatUSDC(f0);
-    document.getElementById('feeAppeals').textContent = '$' + formatUSDC(f1);
-    document.getElementById('feeSupreme').textContent = '$' + formatUSDC(f2);
-  } catch(e) {}
-}
-
-async function loadDisputes() {
-  const count = Number(await contract.disputeCount());
-  document.getElementById('disputeCountBadge').textContent = count;
-
-  disputes = [];
-  let resolvedCount = 0;
-  const fetches = [];
-  for (let i = 0; i < count; i++) {
-    fetches.push(contract.getDispute(i).then(d => {
-      disputes[i] = d;
-      knownAgents.add(d.plaintiff);
-      knownAgents.add(d.defendant);
-      if (d.winner && d.winner !== ethers.ZeroAddress) knownAgents.add(d.winner);
-      if (d.resolved) resolvedCount++;
-    }));
-  }
-  await Promise.all(fetches);
-
-  document.getElementById('statResolved').textContent = resolvedCount;
-
-  // Render recent (overview)
-  const recent = disputes.slice(-5).reverse();
-  document.getElementById('recentDisputes').innerHTML = recent.length
-    ? recent.map((d, j) => renderDispute(count - 1 - j, d)).join('')
-    : '<div style="color:var(--text3);padding:20px;text-align:center">No disputes filed yet</div>';
-
-  // Render all (disputes tab)
-  const all = [...disputes].reverse();
-  document.getElementById('allDisputes').innerHTML = all.length
-    ? all.map((d, j) => renderDispute(count - 1 - j, d)).join('')
-    : '<div style="color:var(--text3);padding:20px;text-align:center">No disputes filed yet</div>';
-
-  // Load agents
-  await loadAgents();
-}
-
-function renderDispute(id, d) {
-  const resolved = d.resolved;
-  const winner = resolved ? (d.winner === d.plaintiff ? 'plaintiff' : 'defendant') : null;
-  const tier = Number(d.tier);
-  const hasOpinion = !zeroHash(d.plaintiffEvidence) || !zeroHash(d.defendantEvidence);
-
-  return `
-  <div class="dispute-card ${resolved ? 'resolved' : 'open'}" id="dispute-${id}">
-    <div class="dispute-top" onclick="toggleDispute(${id})">
-      <div class="dispute-meta">
-        <div class="dispute-id">DISPUTE #${id} &nbsp; TX #${Number(d.transactionId)}</div>
-        <div class="dispute-parties">
-          <div>
-            <div class="party-label">Plaintiff</div>
-            <div class="party-addr">${shortAddr(d.plaintiff)}</div>
-          </div>
-          <div style="color:var(--text3);font-size:20px;align-self:center">vs</div>
-          <div>
-            <div class="party-label">Defendant</div>
-            <div class="party-addr">${shortAddr(d.defendant)}</div>
-          </div>
-        </div>
-      </div>
-      <div class="dispute-right">
-        <div class="dispute-stake">${formatUSDC(d.stake)} USDC</div>
-        <div class="dispute-tier ${tierClass(tier)}">${tierName(tier)}</div>
-        <div style="margin-top:6px">
-          ${resolved
-            ? `<span class="dispute-status status-resolved">RESOLVED</span>`
-            : `<span class="dispute-status status-open">OPEN</span>`
-          }
-        </div>
-      </div>
-    </div>
-    ${resolved ? `
-    <div class="ruling-banner ${winner}">
-      <span class="ruling-verdict ${winner}">
-        ${winner === 'plaintiff' ? 'PLAINTIFF WINS' : 'DEFENDANT WINS'}
-      </span>
-      <span style="color:var(--text3);font-size:12px">
-        &mdash; ${tierName(tier)} court &mdash; Winner: ${shortAddr(d.winner)}
-      </span>
-    </div>` : ''}
-    <div class="dispute-detail" id="detail-${id}">
-      <div class="opinion-container">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;font-size:12px;font-family:'JetBrains Mono',monospace;">
-          <div>
-            <span style="color:var(--text3)">Plaintiff Evidence:</span><br>
-            <span style="color:var(--text2);word-break:break-all">${d.plaintiffEvidence}</span>
-          </div>
-          <div>
-            <span style="color:var(--text3)">Defendant Evidence:</span><br>
-            <span style="color:var(--text2);word-break:break-all">${d.defendantEvidence}</span>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;font-family:'JetBrains Mono',monospace;">
-          <div>
-            <span style="color:var(--text3)">Stake:</span>
-            <span style="color:var(--yellow)">${formatUSDC(d.stake)} USDC</span>
-          </div>
-          <div>
-            <span style="color:var(--text3)">Judge Fee:</span>
-            <span style="color:var(--yellow)">${formatUSDC(d.judgeFee)} USDC</span>
-          </div>
-        </div>
-        <div id="opinion-${id}" style="margin-top:16px"></div>
-      </div>
-    </div>
-  </div>`;
-}
-
-function toggleDispute(id) {
-  const el = document.getElementById('detail-' + id);
-  el.classList.toggle('show');
-  if (el.classList.contains('show')) {
-    loadOpinion(id);
-  }
-}
-
-async function loadOpinion(id) {
-  const el = document.getElementById('opinion-' + id);
-  if (el.dataset.loaded) return;
-
-  el.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Loading judicial opinion...</div>';
-
-  // Fetch from verdict API
-  try {
-    const resp = await fetch(`${VERDICT_API}/verdicts/${id}`);
-    if (resp.ok) {
-      const data = await resp.json();
-      const opinion = data.opinion || '';
-      if (opinion) {
-        const d = disputes[id];
-        el.innerHTML = renderOpinion(tierName(Number(d?.tier || data.tier || 0)), opinion);
-        el.dataset.loaded = '1';
-        return;
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Verdict Protocol Live Demo</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon-verdict-protocol.svg" />
+    <link rel="shortcut icon" type="image/svg+xml" href="/assets/favicon-verdict-protocol.svg" />
+    <link
+      rel="preconnect"
+      href="https://fonts.googleapis.com"
+    />
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f4f7fb;
+        --surface: #ffffff;
+        --surface-soft: #f8fbff;
+        --line: #dce6f3;
+        --text: #0f172a;
+        --muted: #55637a;
+        --brand: #0a7cff;
+        --brand-2: #00b894;
+        --warn: #c57a00;
+        --danger: #d9363e;
+        --ok: #138a4f;
+        --shadow: 0 14px 36px rgba(16, 30, 54, 0.08);
+        --radius: 14px;
+        --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
       }
-    }
-  } catch(e) {}
 
-  // No opinion in API — show on-chain result
-  const d = disputes[id];
-  if (d && d.resolved) {
-    const winner = d.winner === d.plaintiff ? 'PLAINTIFF' : 'DEFENDANT';
-    el.innerHTML = `
-      <div style="padding:4px 0;color:var(--text2);font-size:13px">
-        <strong style="color:var(--text)">${winner} wins</strong> — Ruling submitted on-chain.
-        <br><span style="color:var(--text3);font-size:12px">Opinion not yet published to the verdict API.</span>
-      </div>`;
-  } else {
-    el.innerHTML = '<div style="color:var(--yellow);font-size:13px">Awaiting ruling — dispute is open.</div>';
-  }
-  el.dataset.loaded = '1';
-}
+      * {
+        box-sizing: border-box;
+      }
 
-function renderOpinion(court, text) {
-  // Convert markdown-ish headers to styled HTML
-  let html = escapeHtml(text);
-  html = html.replace(/^(#{1,3})\s+(.+)$/gm, (m, hashes, title) => {
-    const level = hashes.length;
-    const sizes = {'1': '16px', '2': '14px', '3': '13px'};
-    return `<div style="color:var(--text);font-weight:700;font-size:${sizes[level]};margin:16px 0 6px 0">${title}</div>`;
-  });
-  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--text)">$1</strong>');
-  html = html.replace(/---/g, '<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">');
-  return `
-    <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
-      <span style="color:var(--accent);font-size:13px;font-weight:600">JUDICIAL OPINION</span>
-      <span class="dispute-tier ${tierName(court) === court ? tierClass(COURT_TIERS.indexOf(court)) : ''}" style="font-size:10px">${court} court</span>
-    </div>
-    <div class="opinion-text">${html}</div>`;
-}
+      body {
+        margin: 0;
+        color: var(--text);
+        font-family: "Manrope", system-ui, sans-serif;
+        background:
+          radial-gradient(1200px 480px at 100% -120px, #dbeeff 0%, transparent 60%),
+          radial-gradient(800px 360px at -10% 0, #eaf7f7 0%, transparent 50%),
+          var(--bg);
+      }
 
-// Verdicts are fetched from the verdict API at /api/verdicts
+      .shell {
+        max-width: 1260px;
+        margin: 0 auto;
+        padding: 20px;
+      }
 
-function escapeHtml(text) {
-  return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+      .hero {
+        background: linear-gradient(135deg, #ffffff 0%, #f2f8ff 52%, #ebfffb 100%);
+        border: 1px solid var(--line);
+        border-radius: calc(var(--radius) + 6px);
+        box-shadow: var(--shadow);
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        flex-wrap: wrap;
+      }
 
-async function loadServices() {
-  const count = Number(await contract.serviceCount());
-  document.getElementById('serviceCountBadge').textContent = count;
+      .hero h1 {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.12;
+        letter-spacing: -0.02em;
+      }
 
-  let html = '';
-  for (let i = 0; i < count; i++) {
-    try {
-      const s = await contract.getService(i);
-      knownAgents.add(s.provider);
-      const statusNames = ['Active', 'Paused', 'Deprecated'];
-      html += `
-      <div class="service-card">
-        <div class="service-info">
-          <div class="service-id">Service #${i}</div>
-          <div class="service-provider">Provider: ${shortAddr(s.provider)}</div>
-          <div class="service-stats-row" style="margin-top:6px">
-            <span>Calls: ${Number(s.totalCalls)}</span>
-            <span>Disputes: ${Number(s.totalDisputes)}</span>
-            <span>Bond: ${formatUSDC(s.bondRequired)} USDC</span>
-            <span>Status: ${statusNames[Number(s.status)] || 'Unknown'}</span>
+      .hero p {
+        margin: 10px 0 0 0;
+        color: var(--muted);
+      }
+
+      .hero-left {
+        min-width: 320px;
+      }
+
+      .hero-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid #d8e6f6;
+        background: #ffffff;
+        border-radius: 999px;
+        padding: 7px 12px;
+      }
+
+      .hero-brand img {
+        width: 28px;
+        height: 28px;
+        display: block;
+      }
+
+      .hero-brand span {
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        color: #233655;
+        text-transform: uppercase;
+      }
+
+      .hero-logo {
+        margin-top: 10px;
+        width: min(100%, 420px);
+        border-radius: 12px;
+        border: 1px solid #d7e4f5;
+        display: block;
+      }
+
+      .hero-right {
+        min-width: 300px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 7px 12px;
+        font-size: 12px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--muted);
+      }
+
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+      }
+
+      .dot.ok {
+        background: var(--ok);
+      }
+
+      .dot.warn {
+        background: var(--warn);
+      }
+
+      .dot.bad {
+        background: var(--danger);
+      }
+
+      .mono {
+        font-family: var(--mono);
+      }
+
+      .grid {
+        display: grid;
+        gap: 14px;
+        margin-top: 14px;
+      }
+
+      .grid.top {
+        grid-template-columns: 1.4fr 1fr 1fr;
+      }
+
+      .grid.main {
+        grid-template-columns: 1.55fr 1fr;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 16px;
+      }
+
+      .panel h2 {
+        margin: 0;
+        font-size: 14px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #253247;
+      }
+
+      .sub {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .grow {
+        flex: 1;
+      }
+
+      input,
+      button,
+      select {
+        font: inherit;
+      }
+
+      input {
+        width: 100%;
+        background: #ffffff;
+        border: 1px solid #ccd9ea;
+        border-radius: 10px;
+        padding: 10px 11px;
+        color: var(--text);
+      }
+
+      button {
+        border: 1px solid #c9d8ea;
+        background: #ffffff;
+        color: var(--text);
+        border-radius: 10px;
+        padding: 10px 12px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      button:hover {
+        border-color: #8db7e8;
+      }
+
+      button.brand {
+        background: linear-gradient(135deg, #0a7cff 0%, #1b9bff 100%);
+        color: #ffffff;
+        border-color: transparent;
+      }
+
+      button.brand.secondary {
+        background: linear-gradient(135deg, #00b894 0%, #23cfad 100%);
+      }
+
+      .btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .chips {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+
+      .chip {
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        padding: 4px 10px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .chip.ok {
+        color: var(--ok);
+        border-color: #9ad4b6;
+        background: #effaf3;
+      }
+
+      .chip.warn {
+        color: var(--warn);
+        border-color: #ebd3a8;
+        background: #fff8ea;
+      }
+
+      .chip.bad {
+        color: var(--danger);
+        border-color: #f2b5b9;
+        background: #fff0f1;
+      }
+
+      .health-grid {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .health-item {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        background: var(--surface-soft);
+      }
+
+      .health-item .name {
+        font-size: 12px;
+        color: #3c4a5f;
+      }
+
+      .timeline {
+        margin-top: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .step {
+        border: 1px solid var(--line);
+        border-left: 3px solid #9fb5d0;
+        border-radius: 10px;
+        padding: 10px;
+        background: #fafdff;
+      }
+
+      .step.running {
+        border-left-color: var(--brand);
+      }
+
+      .step.done {
+        border-left-color: var(--ok);
+      }
+
+      .step.error {
+        border-left-color: var(--danger);
+      }
+
+      .step .meta {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .step .title {
+        font-weight: 700;
+        margin-top: 2px;
+      }
+
+      .log {
+        margin-top: 10px;
+        border: 1px solid var(--line);
+        background: #fcfeff;
+        border-radius: 10px;
+        height: 250px;
+        overflow: auto;
+        font-family: var(--mono);
+        font-size: 11px;
+        padding: 10px;
+      }
+
+      .log-line {
+        margin-bottom: 7px;
+        color: #2b394f;
+      }
+
+      .table-wrap {
+        margin-top: 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        text-align: left;
+        border-bottom: 1px solid #e8eef7;
+        padding: 8px;
+        vertical-align: top;
+      }
+
+      th {
+        color: #607089;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .inline-link {
+        color: var(--brand);
+        text-decoration: none;
+      }
+
+      .inline-link:hover {
+        text-decoration: underline;
+      }
+
+      .stack {
+        display: grid;
+        gap: 14px;
+      }
+
+      .status-banner {
+        margin-top: 8px;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: #f5fbff;
+        font-size: 13px;
+        color: #234;
+      }
+
+      .status-banner.warn {
+        background: #fff8ec;
+        border-color: #f1dcb6;
+      }
+
+      .footer {
+        margin-top: 18px;
+        color: #5a6981;
+        font-size: 12px;
+      }
+
+      .disputes-list {
+        margin-top: 10px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .dispute-card {
+        border-radius: 12px;
+        border: 1px solid #17203b;
+        background: linear-gradient(180deg, #090d1a 0%, #080b16 100%);
+        color: #d8deed;
+        overflow: hidden;
+      }
+
+      .dispute-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px;
+      }
+
+      .dispute-id {
+        font-family: var(--mono);
+        color: #9aa8c8;
+        font-size: 12px;
+      }
+
+      .dispute-party-line {
+        margin-top: 6px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .dispute-party {
+        font-family: var(--mono);
+        color: #6fb2ff;
+        font-size: 13px;
+      }
+
+      .dispute-vs {
+        color: #8d99b8;
+        font-weight: 700;
+      }
+
+      .dispute-right {
+        text-align: right;
+      }
+
+      .dispute-amount {
+        color: #ffde6a;
+        font-family: var(--mono);
+        font-weight: 700;
+      }
+
+      .dispute-outcome {
+        padding: 10px 12px;
+        border-top: 1px solid #1d2749;
+        border-bottom: 1px solid #1d2749;
+        background: linear-gradient(90deg, rgba(12, 79, 103, 0.45) 0%, rgba(8, 12, 28, 0.2) 100%);
+      }
+
+      .dispute-outcome .winner {
+        font-size: 29px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+      }
+
+      .dispute-outcome .winner.plaintiff {
+        color: #2ee6bc;
+      }
+
+      .dispute-outcome .winner.defendant {
+        color: #ff7685;
+      }
+
+      .dispute-outcome .meta {
+        margin-top: 4px;
+        color: #8b97b7;
+        font-size: 13px;
+      }
+
+      .dispute-details {
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .dispute-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .dispute-stat {
+        border: 1px solid #1f2848;
+        border-radius: 8px;
+        padding: 8px;
+        background: #0a1020;
+      }
+
+      .dispute-stat .label {
+        color: #8491b0;
+        font-size: 12px;
+      }
+
+      .dispute-stat .value {
+        margin-top: 4px;
+        font-family: var(--mono);
+        color: #d8deed;
+        font-size: 12px;
+        word-break: break-all;
+      }
+
+      .opinion-box {
+        border: 1px solid #1f2848;
+        border-radius: 10px;
+        background: #0a1020;
+        padding: 10px;
+      }
+
+      .opinion-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .opinion-title {
+        color: #ff5f8a;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+
+      .opinion-court {
+        color: #c8d2ef;
+        text-transform: uppercase;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .opinion-pre {
+        margin: 0;
+        max-height: 280px;
+        overflow: auto;
+        white-space: pre-wrap;
+        color: #b9c4e2;
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .court-dashboard {
+        margin-top: 16px;
+        border: 1px solid #121a36;
+        border-radius: 16px;
+        background: linear-gradient(180deg, #060a18 0%, #050915 100%);
+        box-shadow: 0 24px 50px rgba(6, 10, 24, 0.35);
+        padding: 18px;
+      }
+
+      .court-stats {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .court-stat-card {
+        background: #090d1f;
+        border: 1px solid #182248;
+        border-radius: 14px;
+        padding: 16px 14px;
+        text-align: center;
+      }
+
+      .court-stat-value {
+        font-family: var(--mono);
+        font-size: 34px;
+        line-height: 1;
+        font-weight: 700;
+        color: #d9e1f6;
+      }
+
+      .court-stat-value.ok {
+        color: #2ee6bc;
+      }
+
+      .court-stat-value.warn {
+        color: #ffd24a;
+      }
+
+      .court-stat-value.brand {
+        color: #5fb2ff;
+      }
+
+      .court-stat-label {
+        margin-top: 8px;
+        color: #6f7da7;
+        font-size: 12px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .court-block {
+        margin-top: 18px;
+      }
+
+      .court-heading {
+        margin: 0;
+        color: #8f9abc;
+        font-size: 34px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .court-tier-grid {
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .tier-card {
+        border: 1px solid #1b2752;
+        background: #090d1f;
+        border-radius: 14px;
+        padding: 16px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .tier-card::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 4px;
+      }
+
+      .tier-card.district::before {
+        background: #16dfbf;
+      }
+
+      .tier-card.appeals::before {
+        background: #ffd24a;
+      }
+
+      .tier-card.supreme::before {
+        background: #b889ff;
+      }
+
+      .tier-name {
+        color: #e6edf9;
+        font-weight: 800;
+        font-size: 22px;
+        letter-spacing: -0.01em;
+      }
+
+      .tier-model {
+        margin-top: 4px;
+        color: #7e8aad;
+        font-family: var(--mono);
+        font-size: 14px;
+      }
+
+      .tier-fee {
+        margin-top: 12px;
+        font-family: var(--mono);
+        font-size: 32px;
+        font-weight: 700;
+      }
+
+      .tier-fee.district {
+        color: #16dfbf;
+      }
+
+      .tier-fee.appeals {
+        color: #ffd24a;
+      }
+
+      .tier-fee.supreme {
+        color: #b889ff;
+      }
+
+      .tier-rule {
+        margin-top: 8px;
+        color: #7582a8;
+        text-transform: uppercase;
+        font-size: 13px;
+      }
+
+      .section-head-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .section-pill {
+        border: 1px solid #1f2a53;
+        border-radius: 999px;
+        color: #8d9abe;
+        font-family: var(--mono);
+        background: #101633;
+        padding: 5px 10px;
+        font-size: 11px;
+      }
+
+      .service-list,
+      .agent-list {
+        margin-top: 10px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .service-card,
+      .agent-card {
+        border: 1px solid #1c2851;
+        background: #090d1f;
+        border-radius: 14px;
+        padding: 14px 16px;
+      }
+
+      .service-card .top,
+      .agent-card .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .service-id {
+        font-family: var(--mono);
+        color: #6f7ca6;
+        font-size: 12px;
+      }
+
+      .service-provider {
+        margin-top: 6px;
+        font-family: var(--mono);
+        color: #6fb2ff;
+        font-size: 16px;
+      }
+
+      .service-meta {
+        margin-top: 7px;
+        color: #7c88ab;
+        font-size: 14px;
+      }
+
+      .service-price {
+        font-family: var(--mono);
+        color: #ffd24a;
+        font-size: 28px;
+      }
+
+      .agent-address {
+        font-family: var(--mono);
+        color: #6fb2ff;
+        font-size: 18px;
+      }
+
+      .agent-explorer {
+        margin-top: 4px;
+        display: inline-block;
+        color: #ff5f8a;
+        text-decoration: none;
+        font-size: 13px;
+      }
+
+      .agent-explorer:hover {
+        text-decoration: underline;
+      }
+
+      .agent-tags {
+        display: inline-flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .agent-tag {
+        border-radius: 8px;
+        border: 1px solid #27345f;
+        padding: 4px 9px;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #9eb3d7;
+        background: #121936;
+      }
+
+      .agent-tag.judge {
+        color: #d6a4ff;
+        border-color: #5b2f8f;
+        background: #271136;
+      }
+
+      .agent-tag.agent {
+        color: #6fb2ff;
+        border-color: #1f4d78;
+        background: #0f2235;
+      }
+
+      .agent-tag.district {
+        color: #16dfbf;
+        border-color: #1e624f;
+        background: #0c241f;
+      }
+
+      .agent-tag.appeals {
+        color: #ffd24a;
+        border-color: #614f1e;
+        background: #251f0f;
+      }
+
+      .agent-tag.supreme {
+        color: #b889ff;
+        border-color: #56307f;
+        background: #1f1232;
+      }
+
+      .agent-grid {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .agent-stat {
+        text-align: center;
+      }
+
+      .agent-stat .value {
+        font-family: var(--mono);
+        font-size: 32px;
+        color: #d8e0f5;
+      }
+
+      .agent-stat .value.ok {
+        color: #2ee6bc;
+      }
+
+      .agent-stat .value.bad {
+        color: #ff5f8a;
+      }
+
+      .agent-stat .value.warn {
+        color: #ffd24a;
+      }
+
+      .agent-stat .label {
+        margin-top: 4px;
+        color: #6e7ca2;
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      @media (max-width: 1080px) {
+        .grid.top {
+          grid-template-columns: 1fr;
+        }
+        .grid.main {
+          grid-template-columns: 1fr;
+        }
+        .court-stats {
+          grid-template-columns: 1fr 1fr;
+        }
+        .court-tier-grid {
+          grid-template-columns: 1fr;
+        }
+        .agent-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="hero">
+        <div class="hero-left">
+          <div class="hero-brand">
+            <img src="/assets/favicon-verdict-protocol.svg" alt="Verdict Protocol" />
+            <span>Ayush + Karan</span>
+          </div>
+          <img class="hero-logo" src="/assets/logo-verdict-protocol.svg" alt="Verdict Protocol logo" />
+          <h1>Verdict Protocol Live Demo</h1>
+          <p>
+            Real-time demo runner for x402 payments, on-chain escrow/disputes on GOAT, evidence anchoring,
+            judge decisions, and reputation updates.
+          </p>
+        </div>
+        <div class="hero-right">
+          <div class="pill">
+            <span id="runnerDot" class="dot warn"></span>
+            <span id="runnerLabel">runner: not connected</span>
+          </div>
+          <div class="sub mono" id="contractLine" style="margin-top: 10px">contract: -</div>
+          <a
+            id="explorerLink"
+            class="inline-link"
+            href="https://explorer.testnet3.goat.network"
+            target="_blank"
+            style="display: inline-block; margin-top: 8px"
+            >open GOAT explorer</a
+          >
+        </div>
+      </div>
+
+      <div class="grid top">
+        <div class="panel">
+          <h2>Connection</h2>
+          <div class="sub">Set runner URL, then connect. If you run on another host/IP, update this first.</div>
+          <div class="row" style="margin-top: 10px">
+            <input id="runnerUrlInput" class="grow mono" />
+            <button id="connectBtn" class="brand">Connect</button>
+          </div>
+          <div class="chips" id="quickUrls"></div>
+          <div id="connectionBanner" class="status-banner warn">Not connected. Start runner and click Connect.</div>
+          <div class="sub mono" style="margin-top: 8px">
+            runner command: `PYTHONPATH=apps/demo_runner/src uv run python -m demo_runner.server`
           </div>
         </div>
-        <div class="service-price">${formatUSDC(s.price)} USDC</div>
-      </div>`;
-    } catch(e) {}
-  }
-  document.getElementById('servicesList').innerHTML = html || '<div style="color:var(--text3);padding:20px;text-align:center">No services registered</div>';
-}
 
-async function loadAgents() {
-  // Also add judge
-  try {
-    const judgeAddr = await contract.judge();
-    knownAgents.add(judgeAddr);
-  } catch(e) {}
+        <div class="panel">
+          <h2>Demo Controls</h2>
+          <div class="sub">One click for Happy, Dispute, or Full autoplay.</div>
+          <div class="row" style="margin-top: 10px">
+            <label class="sub" for="windowSec" style="margin: 0">dispute window (sec)</label>
+            <input id="windowSec" type="number" min="5" max="180" value="30" style="max-width: 100px" />
+          </div>
+          <div class="btn-group">
+            <button id="runHappyBtn" class="brand">Run Happy</button>
+            <button id="runDisputeBtn" class="brand secondary">Run Dispute</button>
+            <button id="runFullBtn">Run Full</button>
+          </div>
+          <div class="btn-group">
+            <button id="refreshRunsBtn">Refresh Runs</button>
+            <button id="refreshVerdictsBtn">Refresh Verdicts</button>
+            <button id="refreshReputationBtn">Refresh Reputation</button>
+          </div>
+          <div class="sub mono" id="activeRunText" style="margin-top: 8px">active run: none</div>
+        </div>
 
-  let html = '';
-  for (const addr of knownAgents) {
-    try {
-      const [stats, bal, losses, isReg] = await Promise.all([
-        contract.getStats(addr).catch(() => null),
-        contract.balances(addr).catch(() => 0n),
-        contract.disputeLossCount(addr).catch(() => 0),
-        contract.isRegistered(addr).catch(() => false),
-      ]);
-      if (!isReg && Number(bal) === 0 && (!stats || Number(stats.totalTransactions) === 0)) continue;
+        <div class="panel">
+          <h2>Agent Payment</h2>
+          <div class="sub">Push payment entry for dashboard visibility.</div>
+          <div class="row" style="margin-top: 10px">
+            <input id="paymentRecipientInput" class="grow mono" placeholder="recipient 0x..." />
+            <input id="paymentAmountInput" value="0.0005" style="max-width: 100px" />
+          </div>
+          <div class="btn-group">
+            <button id="paymentBtn">Run Payment</button>
+          </div>
+          <div id="paymentStatus" class="status-banner" style="margin-top: 10px">No payment run yet.</div>
+        </div>
+      </div>
 
-      const judgeAddr = await contract.judge();
-      const isJudge = addr.toLowerCase() === judgeAddr.toLowerCase();
-      const tier = Number(losses) >= 2 ? 2 : Number(losses) >= 1 ? 1 : 0;
+      <div class="court-dashboard">
+        <div id="courtStats" class="court-stats">
+          <div class="court-stat-card">
+            <div class="court-stat-value brand">0</div>
+            <div class="court-stat-label">Disputes</div>
+          </div>
+          <div class="court-stat-card">
+            <div class="court-stat-value ok">0</div>
+            <div class="court-stat-label">Resolved</div>
+          </div>
+          <div class="court-stat-card">
+            <div class="court-stat-value warn">0</div>
+            <div class="court-stat-label">Services</div>
+          </div>
+          <div class="court-stat-card">
+            <div class="court-stat-value">0</div>
+            <div class="court-stat-label">Transactions</div>
+          </div>
+          <div class="court-stat-card">
+            <div class="court-stat-value ok">$0.0000</div>
+            <div class="court-stat-label">USDC in Escrow</div>
+          </div>
+        </div>
 
-      html += `
-      <div class="agent-card">
-        <div class="agent-header">
-          <div>
-            <div class="agent-addr">${addr}</div>
-            <div style="margin-top:4px">
-              <a href="${EXPLORER}/address/${addr}" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none">View on Explorer &#8599;</a>
+        <div class="court-block">
+          <h2 class="court-heading">Court System</h2>
+          <div class="court-tier-grid">
+            <div class="tier-card district">
+              <div class="tier-name">District Court</div>
+              <div class="tier-model mono">claude-haiku-4-5</div>
+              <div class="tier-fee district">$0.0050</div>
+              <div class="tier-rule">First Hearing</div>
+            </div>
+            <div class="tier-card appeals">
+              <div class="tier-name">Appeals Court</div>
+              <div class="tier-model mono">claude-sonnet-4-6</div>
+              <div class="tier-fee appeals">$0.0100</div>
+              <div class="tier-rule">1 Prior Loss</div>
+            </div>
+            <div class="tier-card supreme">
+              <div class="tier-name">Supreme Court</div>
+              <div class="tier-model mono">claude-opus-4-6</div>
+              <div class="tier-fee supreme">$0.0200</div>
+              <div class="tier-rule">Final Ruling</div>
             </div>
           </div>
-          <div>
-            ${isJudge ? '<span class="agent-role role-judge">JUDGE</span>' : '<span class="agent-role role-agent">AGENT</span>'}
-            <span class="dispute-tier ${tierClass(tier)}" style="margin-left:6px">${tierName(tier)}</span>
+        </div>
+
+        <div class="court-block">
+          <div class="section-head-row">
+            <h2 class="court-heading">Registered Services</h2>
+            <span id="servicesCountPill" class="section-pill">0</span>
+          </div>
+          <div id="registeredServices" class="service-list">
+            <div class="sub">No services yet.</div>
           </div>
         </div>
-        <div class="agent-stats">
-          <div class="agent-stat">
-            <div class="agent-stat-val" style="color:var(--yellow)">${formatUSDC(bal)}</div>
-            <div class="agent-stat-label">Court Balance (USDC)</div>
-          </div>
-          <div class="agent-stat">
-            <div class="agent-stat-val">${stats ? Number(stats.totalTransactions) : 0}</div>
-            <div class="agent-stat-label">Transactions</div>
-          </div>
-          <div class="agent-stat">
-            <div class="agent-stat-val" style="color:var(--green)">${stats ? Number(stats.disputesWon) : 0}</div>
-            <div class="agent-stat-label">Disputes Won</div>
-          </div>
-          <div class="agent-stat">
-            <div class="agent-stat-val" style="color:var(--red)">${stats ? Number(stats.disputesLost) : 0}</div>
-            <div class="agent-stat-label">Disputes Lost</div>
+
+        <div class="court-block">
+          <h2 class="court-heading">Registered Agents</h2>
+          <div id="registeredAgents" class="agent-list">
+            <div class="sub">No agents yet.</div>
           </div>
         </div>
-      </div>`;
-    } catch(e) { console.error('Agent load error:', addr, e); }
-  }
-  document.getElementById('agentsList').innerHTML = html || '<div style="color:var(--text3);padding:20px;text-align:center">No registered agents found</div>';
-}
+      </div>
 
-// --- TABS ---
-function switchTab(name) {
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById('panel-' + name).classList.add('active');
-}
+      <div class="grid main">
+        <div class="stack">
+          <div class="panel">
+            <h2>Run Timeline</h2>
+            <div class="chips">
+              <span id="runStateChip" class="chip warn">idle</span>
+            </div>
+            <div id="timeline" class="timeline"></div>
+          </div>
 
-// --- GO ---
-init();
-</script>
-</body></html>
+          <div class="panel">
+            <h2>Live Log</h2>
+            <div id="runLog" class="log"></div>
+          </div>
+
+          <div class="panel">
+            <h2>Recent Runs</h2>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>run</th>
+                    <th>mode</th>
+                    <th>status</th>
+                    <th>agreements</th>
+                    <th>updated</th>
+                  </tr>
+                </thead>
+                <tbody id="runsBody">
+                  <tr>
+                    <td colspan="5">No runs.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="panel">
+            <h2>Service Health</h2>
+            <div id="healthGrid" class="health-grid"></div>
+          </div>
+
+          <div class="panel">
+            <h2>Agreement Explorer</h2>
+            <div class="row" style="margin-top: 10px">
+              <input id="agreementInput" class="grow mono" placeholder="agreementId" />
+              <button id="loadAgreementBtn">Load</button>
+            </div>
+            <div id="agreementDetail" class="status-banner" style="margin-top: 10px">No agreement loaded.</div>
+          </div>
+
+          <div class="panel">
+            <h2>Recent Disputes</h2>
+            <div class="sub">Live dispute outcomes with full judicial opinion and reasoning.</div>
+            <div id="recentDisputes" class="disputes-list">
+              <div class="sub">No disputes yet.</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>Verdicts</h2>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>dispute</th>
+                    <th>agreement</th>
+                    <th>status</th>
+                    <th>winner</th>
+                    <th>confidence</th>
+                  </tr>
+                </thead>
+                <tbody id="verdictsBody">
+                  <tr>
+                    <td colspan="5">No verdicts.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="verdictDetail" class="status-banner" style="margin-top: 10px">No verdict selected.</div>
+          </div>
+
+          <div class="panel">
+            <h2>Reputation</h2>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>actor</th>
+                    <th>score</th>
+                    <th>events</th>
+                    <th>updated</th>
+                  </tr>
+                </thead>
+                <tbody id="reputationBody">
+                  <tr>
+                    <td colspan="4">No reputation rows.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="reputationDetail" class="status-banner" style="margin-top: 10px">No actor selected.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        Source:
+        <a
+          class="inline-link"
+          href="https://github.com/Ayush10/escrow"
+          target="_blank"
+          >Ayush10/escrow</a
+        >
+      </div>
+    </div>
+
+    <script>
+      const STATE = {
+        connected: false,
+        runnerBase: "",
+        services: {
+          runner: "",
+          evidence: "",
+          provider: "",
+          judge: "",
+          reputation: "",
+        },
+        explorerUrl: "https://explorer.testnet3.goat.network",
+        currentRunId: null,
+        stream: null,
+        judgeWallet: "0x00289Dbbb86b64881CEA492D14178CF886b066Be",
+      };
+
+      const $ = (id) => document.getElementById(id);
+
+      function nowIso() {
+        return new Date().toISOString();
+      }
+
+      function short(v, n = 10) {
+        if (!v || typeof v !== "string") return "-";
+        if (v.length <= n + 4) return v;
+        return `${v.slice(0, n)}...${v.slice(-4)}`;
+      }
+
+      function fmtTime(ms) {
+        if (!ms) return "-";
+        return new Date(ms).toLocaleString();
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function tierName(input) {
+        if (typeof input === "string" && input.trim()) return input.trim().toLowerCase();
+        const n = Number(input);
+        if (n === 1) return "appeals";
+        if (n === 2) return "supreme";
+        return "district";
+      }
+
+      function inferWinnerRole(v) {
+        const winner = String(v.winner || "").toLowerCase();
+        const plaintiff = String(v.plaintiff || "").toLowerCase();
+        const defendant = String(v.defendant || "").toLowerCase();
+        if (winner === "plaintiff" || (plaintiff && winner === plaintiff)) return "plaintiff";
+        if (winner === "defendant" || (defendant && winner === defendant)) return "defendant";
+        return "unknown";
+      }
+
+      function formatUsdc(raw) {
+        if (raw === null || raw === undefined || raw === "") return "-";
+        const s = String(raw).trim();
+        if (!/^-?\d+$/.test(s)) {
+          const asNum = Number(s);
+          if (Number.isFinite(asNum)) return `${asNum.toFixed(4)} USDC`;
+          return `${s} USDC`;
+        }
+        const neg = s.startsWith("-");
+        const digits = neg ? s.slice(1) : s;
+        const decimals = digits.length >= 13 ? 18 : 6;
+        const padded = digits.padStart(decimals + 1, "0");
+        const whole = padded.slice(0, -decimals).replace(/^0+(?=\d)/, "") || "0";
+        const frac = padded.slice(-decimals).slice(0, 4);
+        return `${neg ? "-" : ""}${whole}.${frac} USDC`;
+      }
+
+      function toUsdNumber(raw) {
+        if (raw === null || raw === undefined || raw === "") return 0;
+        if (typeof raw === "number") return Number.isFinite(raw) ? raw : 0;
+        const s = String(raw).trim();
+        if (!s) return 0;
+        if (!/^-?\d+$/.test(s)) {
+          const parsed = Number(s);
+          return Number.isFinite(parsed) ? parsed : 0;
+        }
+        const neg = s.startsWith("-");
+        const digits = neg ? s.slice(1) : s;
+        const decimals = digits.length >= 13 ? 18 : 6;
+        const parsed = Number(digits) / Math.pow(10, decimals);
+        return neg ? -parsed : parsed;
+      }
+
+      function verdictOpinionText(v) {
+        if (v.fullOpinion && String(v.fullOpinion).trim()) {
+          return String(v.fullOpinion);
+        }
+        const fallback = {
+          winner: inferWinnerRole(v) === "unknown" ? v.winner || "-" : inferWinnerRole(v),
+          reasoning:
+            v.reasoning ||
+            "No long-form opinion available. See reasonCodes/facts for deterministic judgment output.",
+          reasonCodes: v.reasonCodes || [],
+          flags: v.flags || [],
+        };
+        return JSON.stringify(fallback, null, 2);
+      }
+
+      function normalizeVerdict(item) {
+        if (item && typeof item.payload === "object") {
+          return { ...item.payload, status: item.status || item.payload.status };
+        }
+        return item || {};
+      }
+
+      function actorToAddress(actorId) {
+        if (!actorId) return "";
+        const s = String(actorId).trim();
+        if (s.startsWith("did:8004:")) return s.slice("did:8004:".length);
+        return s;
+      }
+
+      function isAddress(value) {
+        return /^0x[a-fA-F0-9]{40}$/.test(String(value || ""));
+      }
+
+      function toDid(value) {
+        const addr = actorToAddress(value);
+        if (!isAddress(addr)) return "";
+        return `did:8004:${addr}`;
+      }
+
+      function normalizedAddress(value) {
+        const addr = actorToAddress(value);
+        if (!isAddress(addr)) return "";
+        return addr.toLowerCase();
+      }
+
+      async function fetchOptionalJson(url) {
+        try {
+          return await fetchJson(url);
+        } catch {
+          return null;
+        }
+      }
+
+      function renderRecentDisputes(items) {
+        const root = $("recentDisputes");
+        root.innerHTML = "";
+        if (!items || !items.length) {
+          root.innerHTML = '<div class="sub">No disputes yet.</div>';
+          return;
+        }
+
+        const sorted = items
+          .slice()
+          .sort((a, b) => Number(b.disputeId || 0) - Number(a.disputeId || 0));
+
+        sorted.forEach((raw) => {
+          const v = normalizeVerdict(raw);
+          const role = inferWinnerRole(v);
+          const plaintiff = v.plaintiff || "-";
+          const defendant = v.defendant || "-";
+          const winnerAddress = role === "plaintiff" ? plaintiff : role === "defendant" ? defendant : v.winner || "-";
+          const outcomeText =
+            role === "plaintiff" ? "PLAINTIFF WINS" : role === "defendant" ? "DEFENDANT WINS" : "JUDGMENT ISSUED";
+          const tier = tierName(v.courtTier || v.tier);
+          const statusText = String(v.status || "unknown").toUpperCase();
+          const txRef = v.transactionId ? `TX #${v.transactionId}` : "TX #-";
+          const opinion = verdictOpinionText(v);
+
+          const card = document.createElement("div");
+          card.className = "dispute-card";
+          card.innerHTML = `
+            <div class="dispute-top">
+              <div>
+                <div class="dispute-id">DISPUTE #${escapeHtml(v.disputeId || "-")} &nbsp;&nbsp; ${escapeHtml(txRef)}</div>
+                <div class="dispute-party-line">
+                  <div>
+                    <div class="sub">PLAINTIFF</div>
+                    <div class="dispute-party">${escapeHtml(short(plaintiff, 6))}</div>
+                  </div>
+                  <div class="dispute-vs">VS</div>
+                  <div>
+                    <div class="sub">DEFENDANT</div>
+                    <div class="dispute-party">${escapeHtml(short(defendant, 6))}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="dispute-right">
+                <div class="dispute-amount">${escapeHtml(formatUsdc(v.stake || "0"))}</div>
+                <div class="chips" style="justify-content: flex-end; margin-top: 6px">
+                  <span class="chip warn">${escapeHtml(tier)}</span>
+                  <span class="chip ${statusChipClass(v.status || "unknown")}">${escapeHtml(statusText)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="dispute-outcome">
+              <div class="winner ${role === "defendant" ? "defendant" : role === "plaintiff" ? "plaintiff" : ""}">${escapeHtml(outcomeText)}</div>
+              <div class="meta">- ${escapeHtml(tier)} court - Winner: ${escapeHtml(short(winnerAddress, 8))}</div>
+            </div>
+
+            <div class="dispute-details">
+              <div class="dispute-grid">
+                <div class="dispute-stat">
+                  <div class="label">Plaintiff Evidence</div>
+                  <div class="value">${escapeHtml(v.plaintiffEvidence || "0x0")}</div>
+                </div>
+                <div class="dispute-stat">
+                  <div class="label">Defendant Evidence</div>
+                  <div class="value">${escapeHtml(v.defendantEvidence || "0x0")}</div>
+                </div>
+                <div class="dispute-stat">
+                  <div class="label">Stake</div>
+                  <div class="value">${escapeHtml(formatUsdc(v.stake || "0"))}</div>
+                </div>
+                <div class="dispute-stat">
+                  <div class="label">Judge Fee</div>
+                  <div class="value">${escapeHtml(formatUsdc(v.judgeFee || "0"))}</div>
+                </div>
+              </div>
+
+              <div class="opinion-box">
+                <div class="opinion-head">
+                  <div class="opinion-title">Judicial Opinion</div>
+                  <div class="opinion-court">${escapeHtml(tier)} court</div>
+                </div>
+                <pre class="opinion-pre">${escapeHtml(opinion)}</pre>
+              </div>
+            </div>
+          `;
+
+          card.addEventListener("click", () => {
+            if (v.disputeId !== undefined && v.disputeId !== null) {
+              openVerdict(v.disputeId);
+            }
+          });
+          root.appendChild(card);
+        });
+      }
+
+      function renderCourtStats(stats) {
+        const root = $("courtStats");
+        const escrowText = `$${Number(stats.escrow || 0).toFixed(4)}`;
+        root.innerHTML = `
+          <div class="court-stat-card">
+            <div class="court-stat-value brand">${Number(stats.disputes || 0)}</div>
+            <div class="court-stat-label">Disputes</div>
+          </div>
+          <div class="court-stat-card">
+            <div class="court-stat-value ok">${Number(stats.resolved || 0)}</div>
+            <div class="court-stat-label">Resolved</div>
+          </div>
+          <div class="court-stat-card">
+            <div class="court-stat-value warn">${Number(stats.services || 0)}</div>
+            <div class="court-stat-label">Services</div>
+          </div>
+          <div class="court-stat-card">
+            <div class="court-stat-value">${Number(stats.transactions || 0)}</div>
+            <div class="court-stat-label">Transactions</div>
+          </div>
+          <div class="court-stat-card">
+            <div class="court-stat-value ok">${escapeHtml(escrowText)}</div>
+            <div class="court-stat-label">USDC in Escrow</div>
+          </div>
+        `;
+      }
+
+      function renderRegisteredServices(agreements, verdicts) {
+        const root = $("registeredServices");
+        const pill = $("servicesCountPill");
+        const items = Array.isArray(agreements) ? agreements.slice() : [];
+        pill.textContent = String(items.length);
+        if (!items.length) {
+          root.innerHTML = '<div class="sub">No services yet.</div>';
+          return;
+        }
+
+        const sorted = items.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+        root.innerHTML = sorted
+          .map((agreement, idx) => {
+            const related = verdicts.filter((v) => String(v.agreementId || "") === String(agreement.agreementId || ""));
+            const providerFromVerdict = actorToAddress(related[0]?.defendant || "");
+            const providerFromActors = (agreement.actors || [])
+              .map((a) => actorToAddress(a))
+              .find((a) => isAddress(a));
+            const provider = providerFromVerdict || providerFromActors || "-";
+            const calls = Number(agreement.requestCount || agreement.receiptCount || 0);
+            const disputes = related.length;
+            const bond = related.length ? formatUsdc(related[0].stake || "0") : "0.0010 USDC";
+            const status = "Active";
+            return `
+              <div class="service-card">
+                <div class="top">
+                  <div>
+                    <div class="service-id">Service #${idx}</div>
+                    <div class="service-provider">Provider: ${escapeHtml(short(provider, 6))}</div>
+                    <div class="service-meta">Calls: ${calls} &nbsp;&nbsp; Disputes: ${disputes} &nbsp;&nbsp; Bond: ${escapeHtml(
+                      bond
+                    )} &nbsp;&nbsp; Status: ${status}</div>
+                  </div>
+                  <div class="service-price">0.0050 USDC</div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function tierRank(input) {
+        const t = tierName(input);
+        if (t === "supreme") return 3;
+        if (t === "appeals") return 2;
+        return 1;
+      }
+
+      function renderRegisteredAgents(addresses, verdicts, agreements, detailMap) {
+        const root = $("registeredAgents");
+        const uniq = Array.from(
+          new Set(
+            (addresses || [])
+              .map((a) => actorToAddress(a))
+              .filter((a) => isAddress(a))
+          )
+        );
+        if (!uniq.length) {
+          root.innerHTML = '<div class="sub">No agents yet.</div>';
+          return;
+        }
+
+        const rows = uniq.map((address) => {
+          const lower = normalizedAddress(address);
+          const detail = detailMap.get(lower) || {};
+          const history = Array.isArray(detail.history) ? detail.history : [];
+          const repScore = Number(detail.score ?? 100);
+          let wins = history.filter((h) => h.reason === "won_dispute").length;
+          let losses = history.filter((h) => h.reason === "lost_dispute").length;
+          let txCount = history.length;
+          let balance = 0;
+          let tier = "district";
+
+          const involved = verdicts.filter((v) => {
+            const plaintiff = normalizedAddress(v.plaintiff);
+            const defendant = normalizedAddress(v.defendant);
+            const winner = normalizedAddress(v.winner);
+            const loser = normalizedAddress(v.loser);
+            return lower && (lower === plaintiff || lower === defendant || lower === winner || lower === loser);
+          });
+
+          involved.forEach((v) => {
+            const winner = normalizedAddress(v.winner);
+            const loser = normalizedAddress(v.loser);
+            if (winner === lower) wins += 1;
+            if (loser === lower) losses += 1;
+            const stake = toUsdNumber(v.stake || 0);
+            const judgeFee = toUsdNumber(v.judgeFee || 0);
+            if (winner === lower) balance += stake;
+            if (loser === lower) balance -= stake + judgeFee;
+            if (tierRank(v.courtTier || v.tier) > tierRank(tier)) {
+              tier = tierName(v.courtTier || v.tier);
+            }
+          });
+
+          agreements.forEach((agreement) => {
+            const hasActor = (agreement.actors || [])
+              .map((a) => normalizedAddress(a))
+              .includes(lower);
+            if (hasActor) {
+              txCount += Number(agreement.requestCount || 0);
+            }
+          });
+
+          const role = lower === normalizedAddress(STATE.judgeWallet) ? "judge" : "agent";
+          return {
+            address,
+            score: repScore,
+            transactions: txCount,
+            wins,
+            losses,
+            balance,
+            role,
+            tier,
+          };
+        });
+
+        rows.sort((a, b) => Number(b.score) - Number(a.score));
+        root.innerHTML = rows
+          .map((row) => {
+            const tierClass = ["district", "appeals", "supreme"].includes(row.tier) ? row.tier : "district";
+            return `
+              <div class="agent-card">
+                <div class="top">
+                  <div>
+                    <div class="agent-address">${escapeHtml(row.address)}</div>
+                    <a class="agent-explorer" href="${STATE.explorerUrl}/address/${row.address}" target="_blank">View on Explorer ↗</a>
+                  </div>
+                  <div class="agent-tags">
+                    <span class="agent-tag ${row.role}">${row.role.toUpperCase()}</span>
+                    <span class="agent-tag ${tierClass}">${tierClass.toUpperCase()}</span>
+                  </div>
+                </div>
+                <div class="agent-grid">
+                  <div class="agent-stat">
+                    <div class="value warn">${Math.abs(Number(row.balance || 0)).toFixed(4)}</div>
+                    <div class="label">Court Balance (USDC)</div>
+                  </div>
+                  <div class="agent-stat">
+                    <div class="value">${Number(row.transactions || 0)}</div>
+                    <div class="label">Transactions</div>
+                  </div>
+                  <div class="agent-stat">
+                    <div class="value ok">${Number(row.wins || 0)}</div>
+                    <div class="label">Disputes Won</div>
+                  </div>
+                  <div class="agent-stat">
+                    <div class="value bad">${Number(row.losses || 0)}</div>
+                    <div class="label">Disputes Lost</div>
+                  </div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      async function refreshCourtDashboard(seed = {}) {
+        const verdicts =
+          Array.isArray(seed.verdicts) && seed.verdicts.length >= 0
+            ? seed.verdicts.map(normalizeVerdict)
+            : ((await fetchOptionalJson(`${STATE.services.judge}/verdicts`))?.items || []).map(normalizeVerdict);
+
+        let agreements = (await fetchOptionalJson(`${STATE.services.evidence}/agreements?limit=300`))?.items || [];
+        if (!agreements.length) {
+          const clauses = (await fetchOptionalJson(`${STATE.services.evidence}/clauses?limit=300`))?.items || [];
+          agreements = clauses.map((c) => ({
+            agreementId: c.agreementId,
+            clauseId: c.clauseId,
+            clauseHash: c.clauseHash,
+            serviceScope: c.serviceScope,
+            createdAt: c.createdAt,
+            receiptCount: 0,
+            requestCount: 0,
+            responseCount: 0,
+            actors: [],
+          }));
+        }
+
+        const reputationItems =
+          Array.isArray(seed.reputation) && seed.reputation.length >= 0
+            ? seed.reputation
+            : (await fetchOptionalJson(`${STATE.services.reputation}/reputation`))?.items || [];
+
+        const actorSet = new Set();
+        reputationItems.forEach((item) => {
+          const addr = actorToAddress(item.actorId);
+          if (isAddress(addr)) actorSet.add(addr);
+        });
+        verdicts.forEach((v) => {
+          [v.plaintiff, v.defendant, v.winner, v.loser].forEach((entry) => {
+            const addr = actorToAddress(entry);
+            if (isAddress(addr)) actorSet.add(addr);
+          });
+        });
+        agreements.forEach((agreement) => {
+          (agreement.actors || []).forEach((actor) => {
+            const addr = actorToAddress(actor);
+            if (isAddress(addr)) actorSet.add(addr);
+          });
+        });
+        if (isAddress(STATE.judgeWallet)) {
+          actorSet.add(actorToAddress(STATE.judgeWallet));
+        }
+
+        const detailPairs = await Promise.all(
+          Array.from(actorSet).map(async (addr) => {
+            const did = toDid(addr);
+            const detail = did
+              ? await fetchOptionalJson(`${STATE.services.reputation}/reputation/${encodeURIComponent(did)}`)
+              : null;
+            return [normalizedAddress(addr), detail];
+          })
+        );
+        const detailMap = new Map(detailPairs);
+
+        const disputes = verdicts.length;
+        const resolved = verdicts.filter((v) => {
+          const status = String(v.status || "").toLowerCase();
+          return status === "submitted" || status === "resolved" || status === "complete";
+        }).length;
+        const services = agreements.length;
+        const transactions = agreements.reduce(
+          (sum, item) => sum + Number(item.requestCount || item.receiptCount || 0),
+          0
+        );
+        const escrow = verdicts.reduce((sum, item) => sum + Math.max(0, toUsdNumber(item.stake || 0)), 0);
+
+        renderCourtStats({ disputes, resolved, services, transactions, escrow });
+        renderRegisteredServices(agreements, verdicts);
+        renderRegisteredAgents(Array.from(actorSet), verdicts, agreements, detailMap);
+      }
+
+      function statusChipClass(status) {
+        if (status === "done" || status === "complete" || status === "submitted") return "ok";
+        if (status === "error" || status === "failed") return "bad";
+        return "warn";
+      }
+
+      function defaultRunnerUrl() {
+        const saved = window.localStorage.getItem("vp_runner_url");
+        if (saved) return saved;
+        const host = window.location.hostname || "127.0.0.1";
+        return `http://${host}:4004`;
+      }
+
+      function setRunnerState(text, level = "warn") {
+        $("runnerLabel").textContent = text;
+        $("runnerDot").className = `dot ${level}`;
+      }
+
+      function setConnectionBanner(text, level = "warn") {
+        const el = $("connectionBanner");
+        el.textContent = text;
+        el.className = `status-banner ${level === "warn" ? "warn" : ""}`;
+      }
+
+      function appendLog(msg) {
+        const row = document.createElement("div");
+        row.className = "log-line";
+        row.textContent = `${nowIso()}  ${msg}`;
+        const pane = $("runLog");
+        pane.appendChild(row);
+        pane.scrollTop = pane.scrollHeight;
+      }
+
+      async function fetchJson(url, options) {
+        const res = await fetch(url, options);
+        let body = null;
+        try {
+          body = await res.json();
+        } catch {
+          body = null;
+        }
+        if (!res.ok) {
+          const detail = (body && (body.detail || body.message || body.error)) || `HTTP ${res.status}`;
+          throw new Error(detail);
+        }
+        return body;
+      }
+
+      function getServiceHost(baseUrl) {
+        try {
+          return new URL(baseUrl).hostname;
+        } catch {
+          return "127.0.0.1";
+        }
+      }
+
+      function deriveDefaultServices(baseUrl) {
+        const host = getServiceHost(baseUrl);
+        return {
+          runner: baseUrl,
+          evidence: `http://${host}:4001`,
+          provider: `http://${host}:4000`,
+          judge: `http://${host}:4002`,
+          reputation: `http://${host}:4003`,
+        };
+      }
+
+      async function connectRunner() {
+        const url = $("runnerUrlInput").value.trim().replace(/\/+$/, "");
+        if (!url) {
+          throw new Error("Runner URL is empty");
+        }
+
+        window.localStorage.setItem("vp_runner_url", url);
+        STATE.runnerBase = url;
+        STATE.services = deriveDefaultServices(url);
+
+        const health = await fetchJson(`${url}/health`);
+        const cfg = await fetchJson(`${url}/config`);
+        if (cfg.services) {
+          STATE.services = cfg.services;
+        }
+        STATE.connected = true;
+        STATE.explorerUrl = cfg.explorerUrl || health.explorer || STATE.explorerUrl;
+
+        $("explorerLink").href = STATE.explorerUrl;
+        $("contractLine").textContent = `contract: ${cfg.contractAddress || health.contractAddress || "-"}`;
+        setRunnerState(`runner: connected (${url})`, "ok");
+        setConnectionBanner("Connected. Controls are active.", "ok");
+      }
+
+      function renderHealth(health) {
+        const grid = $("healthGrid");
+        grid.innerHTML = "";
+        Object.entries(health).forEach(([name, status]) => {
+          const card = document.createElement("div");
+          card.className = "health-item";
+          card.innerHTML = `
+            <div class="name">${name}</div>
+            <div style="margin-top:6px"><span class="chip ${statusChipClass(status)}">${status}</span></div>
+          `;
+          grid.appendChild(card);
+        });
+      }
+
+      async function refreshHealth() {
+        const health = {};
+        const entries = Object.entries(STATE.services);
+        for (const [name, base] of entries) {
+          try {
+            const payload = await fetchJson(`${base}/health`);
+            const status = (payload && payload.status ? String(payload.status) : "ok").toLowerCase();
+            if (status === "degraded" || status === "warn") {
+              health[name] = "warn";
+            } else {
+              health[name] = "ok";
+            }
+          } catch {
+            health[name] = "down";
+          }
+        }
+        renderHealth(health);
+      }
+
+      function renderTimeline(steps) {
+        const root = $("timeline");
+        root.innerHTML = "";
+        if (!steps || !steps.length) {
+          root.innerHTML = '<div class="sub">No steps yet.</div>';
+          return;
+        }
+        steps.forEach((s) => {
+          const card = document.createElement("div");
+          card.className = `step ${s.status || "running"}`;
+          card.innerHTML = `
+            <div class="meta mono">${s.stepId || "-"}</div>
+            <div class="title">${s.label || s.stepId || "-"}</div>
+            <div class="sub">${s.message || ""}</div>
+          `;
+          root.appendChild(card);
+        });
+      }
+
+      async function openRun(runId) {
+        const run = await fetchJson(`${STATE.runnerBase}/runs/${runId}`);
+        STATE.currentRunId = run.runId;
+        $("activeRunText").textContent = `active run: ${run.runId} (${run.status})`;
+        $("runStateChip").className = `chip ${statusChipClass(run.status)}`;
+        $("runStateChip").textContent = run.status;
+        renderTimeline(run.steps || []);
+        if (run.agreementIds && run.agreementIds.length) {
+          $("agreementInput").value = run.agreementIds[run.agreementIds.length - 1];
+        }
+        appendLog(`opened run ${runId}`);
+        startStream(runId);
+      }
+
+      function startStream(runId) {
+        if (STATE.stream) {
+          STATE.stream.close();
+        }
+        const source = new EventSource(`${STATE.runnerBase}/runs/${runId}/stream`);
+        STATE.stream = source;
+
+        source.onmessage = async (event) => {
+          if (!event.data) return;
+          let payload = null;
+          try {
+            payload = JSON.parse(event.data);
+          } catch {
+            return;
+          }
+          appendLog(`${payload.type || "event"} | ${payload.label || payload.stepId || ""} | ${payload.message || ""}`);
+          try {
+            const run = await fetchJson(`${STATE.runnerBase}/runs/${runId}`);
+            $("runStateChip").className = `chip ${statusChipClass(run.status)}`;
+            $("runStateChip").textContent = run.status;
+            renderTimeline(run.steps || []);
+            $("activeRunText").textContent = `active run: ${run.runId} (${run.status})`;
+
+            if ((run.status === "complete" || run.status === "error") && STATE.stream) {
+              STATE.stream.close();
+              STATE.stream = null;
+              await Promise.allSettled([
+                refreshRuns(),
+                refreshVerdicts(),
+                refreshReputation(),
+                refreshCourtDashboard(),
+              ]);
+            }
+          } catch (err) {
+            appendLog(`run refresh error: ${err.message}`);
+          }
+        };
+
+        source.onerror = () => {
+          appendLog("SSE stream disconnected");
+        };
+      }
+
+      async function createRun(mode) {
+        const payload = {
+          mode,
+          startServices: true,
+          keepServices: true,
+          autoRun: true,
+          agreementWindowSec: Number($("windowSec").value || 30),
+        };
+        const created = await fetchJson(`${STATE.runnerBase}/runs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        appendLog(`created run ${created.runId} (${mode})`);
+        await refreshRuns();
+        await openRun(created.runId);
+      }
+
+      async function refreshRuns() {
+        const data = await fetchJson(`${STATE.runnerBase}/runs`);
+        const runs = data.runs || [];
+        const body = $("runsBody");
+        body.innerHTML = "";
+        if (!runs.length) {
+          body.innerHTML = '<tr><td colspan="5">No runs.</td></tr>';
+          return;
+        }
+        runs.forEach((run) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td><button data-run="${run.runId}">open</button> <span class="mono">${short(run.runId)}</span></td>
+            <td>${run.mode}</td>
+            <td><span class="chip ${statusChipClass(run.status)}">${run.status}</span></td>
+            <td class="mono">${(run.agreementIds || []).join(", ")}</td>
+            <td>${fmtTime(run.updateMs)}</td>
+          `;
+          tr.querySelector("button").addEventListener("click", () => openRun(run.runId));
+          body.appendChild(tr);
+        });
+      }
+
+      async function loadAgreement(agreementId) {
+        const payload = await fetchJson(
+          `${STATE.services.evidence}/agreements/${encodeURIComponent(agreementId)}`
+        );
+        const chainStatus = payload.receiptChain?.valid ? "valid" : "invalid";
+        const rootStatus = payload.root?.matched === true ? "matched" : payload.root?.matched === false ? "mismatch" : "unknown";
+        const tx = payload.anchor?.txHash;
+        const txLink = tx ? `${STATE.explorerUrl}/tx/${tx}` : null;
+        let html = `
+          agreement: <span class="mono">${payload.agreementId || "-"}</span><br/>
+          receipts: ${payload.receiptCount || 0}<br/>
+          chain: <span class="chip ${chainStatus === "valid" ? "ok" : "bad"}">${chainStatus}</span><br/>
+          root: ${payload.root?.anchored || "-"} (${rootStatus})
+        `;
+        if (txLink) {
+          html += `<br/>anchor tx: <a class="inline-link mono" href="${txLink}" target="_blank">${short(tx, 14)}</a>`;
+        }
+        $("agreementDetail").innerHTML = html;
+      }
+
+      async function refreshVerdicts() {
+        const payload = await fetchJson(`${STATE.services.judge}/verdicts`);
+        const items = (payload.items || []).map(normalizeVerdict);
+        renderRecentDisputes(items);
+        await refreshCourtDashboard({ verdicts: items });
+        const body = $("verdictsBody");
+        body.innerHTML = "";
+        if (!items.length) {
+          body.innerHTML = '<tr><td colspan="5">No verdicts.</td></tr>';
+          return;
+        }
+        items.forEach((v) => {
+          const row = document.createElement("tr");
+          const status = v.status || "unknown";
+          const confidence =
+            typeof v.confidence === "number" ? v.confidence.toFixed(2) : v.confidence || "-";
+          row.innerHTML = `
+            <td><button data-id="${v.disputeId}">open</button> ${v.disputeId}</td>
+            <td class="mono">${short(v.agreementId || "-", 14)}</td>
+            <td><span class="chip ${statusChipClass(status)}">${status}</span></td>
+            <td class="mono">${short(v.winner || "-", 12)}</td>
+            <td>${confidence}</td>
+          `;
+          row.querySelector("button").addEventListener("click", () => openVerdict(v.disputeId));
+          body.appendChild(row);
+        });
+      }
+
+      async function openVerdict(disputeId) {
+        const v = await fetchJson(`${STATE.services.judge}/verdicts/${disputeId}`);
+        let html = `
+          dispute: ${v.disputeId}<br/>
+          winner: <span class="mono">${v.winner || "-"}</span><br/>
+          confidence: ${v.confidence ?? "-"}<br/>
+          reasons: ${(v.reasonCodes || []).join(", ") || "-"}
+        `;
+        if (v.submitTxHash) {
+          html += `<br/>tx: <a class="inline-link mono" target="_blank" href="${STATE.explorerUrl}/tx/${v.submitTxHash}">${short(v.submitTxHash, 14)}</a>`;
+        }
+        $("verdictDetail").innerHTML = html;
+      }
+
+      async function refreshReputation() {
+        const payload = await fetchJson(`${STATE.services.reputation}/reputation`);
+        const items = payload.items || [];
+        await refreshCourtDashboard({ reputation: items });
+        const body = $("reputationBody");
+        body.innerHTML = "";
+        if (!items.length) {
+          body.innerHTML = '<tr><td colspan="4">No reputation rows.</td></tr>';
+          return;
+        }
+        items
+          .slice()
+          .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+          .forEach((a) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td><button data-id="${a.actorId}">open</button> <span class="mono">${short(a.actorId, 12)}</span></td>
+              <td>${a.score ?? "-"}</td>
+              <td>${(a.events || []).length}</td>
+              <td>${fmtTime(a.updatedAtMs || a.updatedAt)}</td>
+            `;
+            row.querySelector("button").addEventListener("click", () => openActor(a.actorId));
+            body.appendChild(row);
+          });
+      }
+
+      async function openActor(actorId) {
+        const payload = await fetchJson(`${STATE.services.reputation}/reputation/${encodeURIComponent(actorId)}`);
+        const events = payload.history || payload.events || [];
+        if (!events.length) {
+          $("reputationDetail").innerHTML = `actor <span class="mono">${actorId}</span>: no history`;
+          return;
+        }
+        const lines = events
+          .slice(0, 8)
+          .map((e) => {
+            const ts = e.atMs || (e.createdAt ? Number(e.createdAt) * 1000 : 0);
+            const label = e.reason || e.action || "-";
+            const detail = e.detail || JSON.stringify(e.payload || {});
+            return `${label} @ ${fmtTime(ts)} (${detail})`;
+          })
+          .join("<br/>");
+        $("reputationDetail").innerHTML = `actor <span class="mono">${actorId}</span><br/>${lines}`;
+      }
+
+      async function runPayment() {
+        const payload = {
+          token: "USDC",
+          amount: $("paymentAmountInput").value || "0.0005",
+          recipient: $("paymentRecipientInput").value.trim() || null,
+          agentName: "Ayush + Karan and Verdict Protocol",
+          agentDescription: "Signature identity for Verdict Protocol agent payments",
+          dryRun: false,
+          requestFaucet: false,
+        };
+        $("paymentStatus").textContent = "Submitting payment...";
+        const res = await fetchJson(`${STATE.runnerBase}/dashboard-payment`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        let text = `mode=${res.mode || "-"} tx=${res.txHash || "-"}`;
+        if (res.txHash) {
+          text += ` | ${STATE.explorerUrl}/tx/${res.txHash}`;
+        }
+        $("paymentStatus").textContent = text;
+      }
+
+      function wireQuickRunnerUrls() {
+        const host = window.location.hostname || "127.0.0.1";
+        const choices = [
+          `http://127.0.0.1:4004`,
+          `http://localhost:4004`,
+          `http://${host}:4004`,
+        ];
+        const root = $("quickUrls");
+        root.innerHTML = "";
+        [...new Set(choices)].forEach((url) => {
+          const b = document.createElement("button");
+          b.textContent = short(url, 18);
+          b.className = "mono";
+          b.addEventListener("click", () => {
+            $("runnerUrlInput").value = url;
+          });
+          root.appendChild(b);
+        });
+      }
+
+      async function guarded(action, label) {
+        try {
+          await action();
+        } catch (err) {
+          appendLog(`${label} error: ${err.message || String(err)}`);
+          setConnectionBanner(`${label} failed: ${err.message || String(err)}`, "warn");
+        }
+      }
+
+      function bindEvents() {
+        $("connectBtn").addEventListener("click", () => guarded(connectAndRefresh, "connect"));
+        $("runHappyBtn").addEventListener("click", () => guarded(() => createRun("happy"), "run happy"));
+        $("runDisputeBtn").addEventListener("click", () => guarded(() => createRun("dispute"), "run dispute"));
+        $("runFullBtn").addEventListener("click", () => guarded(() => createRun("full"), "run full"));
+        $("refreshRunsBtn").addEventListener("click", () => guarded(refreshRuns, "refresh runs"));
+        $("refreshVerdictsBtn").addEventListener("click", () => guarded(refreshVerdicts, "refresh verdicts"));
+        $("refreshReputationBtn").addEventListener("click", () => guarded(refreshReputation, "refresh reputation"));
+        $("loadAgreementBtn").addEventListener("click", () =>
+          guarded(() => loadAgreement($("agreementInput").value.trim()), "load agreement")
+        );
+        $("paymentBtn").addEventListener("click", () => guarded(runPayment, "dashboard payment"));
+      }
+
+      async function connectAndRefresh() {
+        await connectRunner();
+        await Promise.allSettled([
+          refreshHealth(),
+          refreshRuns(),
+          refreshVerdicts(),
+          refreshReputation(),
+          refreshCourtDashboard(),
+        ]);
+      }
+
+      async function boot() {
+        $("runnerUrlInput").value = defaultRunnerUrl();
+        STATE.runnerBase = $("runnerUrlInput").value.trim();
+        STATE.services = deriveDefaultServices(STATE.runnerBase);
+        wireQuickRunnerUrls();
+        bindEvents();
+
+        appendLog("UI initialized");
+        await guarded(connectAndRefresh, "initial connect");
+      }
+
+      boot();
+    </script>
+  </body>
+</html>

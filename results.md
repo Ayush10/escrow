@@ -182,3 +182,61 @@ For this project implementation, the live dashboard-facing project identity used
 - Logs: `/Users/ayushojha/Desktop/03_Projects/escrow/artifacts/validation/logs`
 - Screenshots: `/Users/ayushojha/Desktop/03_Projects/escrow/artifacts/validation/screenshots`
 - Dashboard-specific screenshots: `/Users/ayushojha/Desktop/03_Projects/escrow/artifacts/validation/screenshots/dashboard`
+
+## Latest Pull-and-Run Check (2026-03-01 UTC)
+
+- Command: `git pull --ff-only origin main` (already up-to-date).
+- Command: `uv run pytest -q` (`7` tests passed).
+- Command:
+  ```bash
+  cd /Users/ayushojha/Desktop/03_Projects/escrow && \
+  PYTHONPATH=./packages/protocol/src:./apps/evidence_service/src:./apps/provider_api/src:./apps/judge_service/src:./apps/reputation_service/src:./apps/consumer_agent/src:./apps/demo_runner/src \
+  ESCROW_DRY_RUN=1 X402_ALLOW_MOCK=1 \
+  GOAT_CHAIN_ID=48816 GOAT_RPC_URL=https://rpc.testnet3.goat.network \
+  ESCROW_CONTRACT_ADDRESS=0x00289Dbbb86b64881CEA492D14178CF886b066Be \
+  PROVIDER_PRIVATE_KEY=0x1111111111111111111111111111111111111111111111111111111111111111 \
+  CONSUMER_PRIVATE_KEY=0x2222222222222222222222222222222222222222222222222222222222222222 \
+  JUDGE_PRIVATE_KEY=0x3333333333333333333333333333333333333333333333333333333333333333 \
+  SQLITE_PATH=./data/verdict_test.db \
+  EVIDENCE_SERVICE_URL=http://127.0.0.1:4001 \
+  PROVIDER_API_URL=http://127.0.0.1:4000 \
+  X402_SELLER_WALLET=0x0000000000000000000000000000000000000000 \
+  uv run python -m demo_runner.demo
+  ```
+- Result:
+  - `happy` and `dispute` flows both returned JSON summaries successfully.
+  - Service startup and shutdown logs are captured in command output.
+  - `GET /verdicts` and `GET /reputation` returned empty sets in dry-run mode (expected, because dispute events are not emitted in mock execution).
+- Code changes from this run to support the command:
+  - `apps/demo_runner/src/demo_runner/demo.py`: use module-based service/consumer invocation with explicit `PYTHONPATH`.
+  - `packages/protocol/src/verdict_protocol/escrow_client.py`: added dry-run fallback for `fileDispute` requiring `tx_id`/`stake` on this ABI.
+
+Screenshot note:
+No new screenshots were captured in this specific pass, but the command output confirms deterministic execution.
+
+## Frontend / Orchestrator Follow-up (2026-03-01 UTC)
+
+- Branch inspection:
+  - `git branch -a` shows `main` and remote `origin/python-backend`.
+  - `origin/main` is newer than local head by commit `e0ff511`.
+- Pull attempt:
+  - `git pull --ff-only origin main` was blocked by local uncommitted files to preserve current demo orchestration changes.
+  - Local working tree was validated instead and kept for iterative integration.
+- Demo runner API validation:
+  - Started server with:
+    - `PYTHONPATH=apps/demo_runner/src uv run python -m demo_runner.server`
+  - `GET /health` returned live contract/config values with default address:
+    - `0x00289Dbbb86b64881CEA492D14178CF886b066Be`
+  - `GET /config` returned service endpoints + chain metadata.
+  - `POST /runs` with `autoRun:false` created a `pending` run.
+  - `POST /runs/{run_id}/start` successfully started execution (error handling surfaced when dependent services were unavailable).
+- Frontend check:
+  - `python3 -m http.server 4173 --directory judge-frontend`
+  - `curl -s http://127.0.0.1:4173/index.html | head` confirmed upgraded live dashboard HTML is being served.
+- New orchestrator bugfix validated:
+  - `demo_runner/server.py` `/runs/{run_id}/start` route is now async and no longer throws `no running event loop`.
+- Lint/test checks:
+  - `uv run ruff check apps/demo_runner/src/demo_runner/orchestrator.py apps/demo_runner/src/demo_runner/server.py apps/demo_runner/src/demo_runner/demo.py apps/demo_runner/src/demo_runner/push_dashboard_payment.py`
+    - passed.
+  - `uv run pytest`
+    - `7 passed`.

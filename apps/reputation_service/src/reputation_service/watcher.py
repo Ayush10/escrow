@@ -35,7 +35,12 @@ class ReputationWatcher:
             loser = args.get("loser")
 
             dispute = self.escrow.get_dispute(dispute_id)
-            plaintiff = dispute[0] if dispute else None
+            plaintiff = None
+            if dispute:
+                if len(dispute) >= 10:
+                    plaintiff = dispute[1]
+                elif len(dispute) >= 1:
+                    plaintiff = dispute[0]
 
             if winner:
                 self.storage.apply_event(

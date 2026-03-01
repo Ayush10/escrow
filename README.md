@@ -34,6 +34,21 @@ flowchart LR
 - `contracts`: existing L1 contract, ABI, and optional deploy tooling.
 - `demo/` and `guardian/` (legacy from early python-backend): optional manual demo scripts and proxy tooling retained for reference/backward compatibility; the authoritative runtime for hackathon validation remains the `apps/*` services.
 
+## Remote Integration (Non-Breaking)
+
+Recent `origin/main` updates were integrated additively without replacing the current frontend flow:
+
+- Added compatibility aliases in judge service:
+  - `/api/health`
+  - `/api/verdicts`
+  - `/api/verdicts/{disputeId}`
+- Added optional legacy compatibility helpers under `judge-frontend/`:
+  - `verdict_api.py` (shim to judge service verdict endpoints)
+  - `court_server.py` (frontend host + API proxy adapter)
+  - `court_watcher.py` (compatibility watcher)
+- Added `agent_demo.py` as a safe runner-driven demo script (no embedded keys).
+- Added `KNOWN_ISSUES.md` with current limitations and priorities.
+
 ## Prerequisites
 
 - Python 3.11+

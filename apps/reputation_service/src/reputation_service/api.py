@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from verdict_protocol import EscrowClient
 
 from .storage import ReputationStorage
@@ -12,6 +14,12 @@ from .watcher import ReputationWatcher
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Reputation Service", version="0.1.0")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     storage = ReputationStorage(os.environ.get("SQLITE_PATH", "./data/verdict.db"))
     escrow = EscrowClient(
@@ -38,8 +46,12 @@ def create_app() -> FastAPI:
                 await task
 
     @app.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
+    def health() -> dict[str, object]:
+        sanity = watcher.escrow.contract_sanity()
+        status = "ok"
+        if (not sanity["contractHasCode"]) and (not sanity["dryRun"]):
+            status = "degraded"
+        return {"status": status, "escrow": sanity}
 
     @app.get("/reputation/{actor_id}")
     def get_reputation(actor_id: str) -> dict:
@@ -51,9 +63,6 @@ def create_app() -> FastAPI:
         return {"count": len(items), "items": items}
 
     return app
-
-
-import contextlib
 
 app = create_app()
 
