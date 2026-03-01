@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+/// @notice Minimal ERC-20 interface
+interface IERC20 {
+    function transfer(address to, uint256 amount) external returns (bool);
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+}
+
 /// @notice Minimal interface for ERC-8004 IdentityRegistry
 interface IIdentityRegistry {
     function ownerOf(uint256 tokenId) external view returns (address);
@@ -14,15 +22,17 @@ interface IReputationRegistry {
 
 /// @title AgentCourt — The clearinghouse for the machine economy
 /// @notice One contract. Every agent, every transaction, every dispute. All on-chain.
+/// @dev All payments in USDC (ERC-20). Agents must approve() this contract first.
 contract AgentCourt {
 
     // ===== STATE =====
 
+    IERC20 public paymentToken;  // USDC
     address public judge;
     uint256 public minDeposit;
     uint256 public serviceFeeRate;  // basis points (100 = 1%)
 
-    // Tiered judge fees: $0.05, $0.10, $0.20 (in wei at deploy time)
+    // Tiered judge fees: $0.05, $0.10, $0.20 (in token units)
     uint256[3] public judgeFees;
     // Track dispute count per agent for tier escalation
     mapping(address => uint8) public disputeLossCount;
@@ -69,7 +79,7 @@ contract AgentCourt {
     struct Service {
         address provider;
         bytes32 termsHash;        // hash of off-chain terms (API spec, SLA, pricing)
-        uint256 price;            // price per call in wei
+        uint256 price;            // price per call in token units
         uint256 bondRequired;     // min bond consumer must hold
         ServiceStatus status;
         uint256 totalCalls;
@@ -140,6 +150,7 @@ contract AgentCourt {
     // ===== CONSTRUCTOR =====
 
     constructor(
+        address _paymentToken,
         address _judge,
         uint256 _minDeposit,
         uint256[3] memory _judgeFees,
@@ -148,6 +159,7 @@ contract AgentCourt {
         address _reputationRegistry,
         bool _requireIdentity
     ) {
+        paymentToken = IERC20(_paymentToken);
         judge = _judge;
         minDeposit = _minDeposit;
         judgeFees = _judgeFees;  // [district, appeals, supreme]
@@ -159,29 +171,31 @@ contract AgentCourt {
 
     // ===== AGENT LIFECYCLE =====
 
-    /// Register as an agent. Deposit is your bond/reputation.
-    function register() external payable {
+    /// Register as an agent. Must approve() USDC first. Deposit is your bond/reputation.
+    function register(uint256 depositAmount) external {
         require(stats[msg.sender].registeredAt == 0, "Already registered");
-        require(msg.value >= minDeposit, "Below min deposit");
+        require(depositAmount >= minDeposit, "Below min deposit");
         if (requireIdentity) {
             require(identityRegistry.balanceOf(msg.sender) > 0, "No ERC-8004 identity");
         }
-        balances[msg.sender] = msg.value;
+        require(paymentToken.transferFrom(msg.sender, address(this), depositAmount), "Transfer failed");
+        balances[msg.sender] = depositAmount;
         stats[msg.sender].registeredAt = uint64(block.timestamp);
-        emit AgentRegistered(msg.sender, msg.value);
+        emit AgentRegistered(msg.sender, depositAmount);
     }
 
     /// Add more to your bond.
-    function deposit() external payable registered {
-        require(msg.value > 0, "Zero deposit");
-        balances[msg.sender] += msg.value;
-        emit Deposited(msg.sender, msg.value, balances[msg.sender]);
+    function deposit(uint256 amount) external registered {
+        require(amount > 0, "Zero deposit");
+        require(paymentToken.transferFrom(msg.sender, address(this), amount), "Transfer failed");
+        balances[msg.sender] += amount;
+        emit Deposited(msg.sender, amount, balances[msg.sender]);
     }
 
-    /// Withdraw unused balance. Must keep minDeposit to stay active.
+    /// Withdraw unused balance.
     function withdraw(uint256 amount) external hasBalance(amount) {
         balances[msg.sender] -= amount;
-        payable(msg.sender).transfer(amount);
+        require(paymentToken.transfer(msg.sender, amount), "Transfer failed");
         emit Withdrawn(msg.sender, amount, balances[msg.sender]);
     }
 

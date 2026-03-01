@@ -34,9 +34,9 @@ JUDGE_KEY = os.environ["JUDGE_PRIVATE_KEY"]
 w3 = Web3(Web3.HTTPProvider(RPC))
 judge_acct = Account.from_key(JUDGE_KEY)
 
-# Generate two demo agent wallets
-GOOD_AGENT = Account.create()
-BAD_PROVIDER = Account.create()
+# Persistent demo agent wallets (ERC-8004 identity + reputation carry over)
+GOOD_AGENT = Account.from_key(os.environ["GOOD_AGENT_KEY"])
+BAD_PROVIDER = Account.from_key(os.environ["BAD_PROVIDER_KEY"])
 
 # Contract
 CONTRACT_FILE = Path.home() / ".agent-court" / "contract_address.txt"
@@ -44,9 +44,17 @@ CONTRACT_ADDR = os.environ.get("CONTRACT_ADDRESS", "")
 if not CONTRACT_ADDR and CONTRACT_FILE.exists():
     CONTRACT_ADDR = CONTRACT_FILE.read_text().strip()
 
-ABI = json.loads(open(Path(__file__).parent.parent / "escrow" / "server" / "app.py").read().split("ABI = json.loads(")[1].split(""")""")[0] + '"]')  # hack
-# Actually just inline the ABI we need
-ABI = json.loads("""[
+_abi_file = Path.home() / ".agent-court" / "abi.json"
+ABI = json.loads(_abi_file.read_text())
+
+# ERC-8004 IdentityRegistry ABI (just the register function)
+IDENTITY_REGISTRY = "0x556089008Fc0a60cD09390Eca93477ca254A5522"
+IDENTITY_ABI = json.loads("""[
+    {"inputs":[{"internalType":"string","name":"tokenURI_","type":"string"}],"name":"register","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
+]""")
+
+_UNUSED = """[
     {"inputs":[],"name":"deposit","outputs":[],"stateMutability":"payable","type":"function"},
     {"inputs":[],"name":"register","outputs":[],"stateMutability":"payable","type":"function"},
     {"inputs":[{"internalType":"bytes32","name":"termsHash","type":"bytes32"},{"internalType":"uint256","name":"price","type":"uint256"},{"internalType":"uint256","name":"bondRequired","type":"uint256"}],"name":"registerService","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},
@@ -64,7 +72,7 @@ ABI = json.loads("""[
     {"inputs":[],"name":"serviceCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
     {"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balances","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
     {"inputs":[{"internalType":"address","name":"agent","type":"address"}],"name":"getJudgeFee","outputs":[{"internalType":"uint256","name":"fee","type":"uint256"},{"internalType":"uint8","name":"tier","type":"uint8"}],"stateMutability":"view","type":"function"}
-]""")
+]"""
 
 
 def send_tx(acct, fn, value=0):
@@ -106,8 +114,8 @@ def main():
     print(f"Bad Provider: {BAD_PROVIDER.address}")
     print()
 
-    # Fund demo agents from judge wallet
-    deposit = Web3.to_wei(0.000001, "ether")
+    # Fund demo agents from judge wallet (enough for gas + deposits + disputes)
+    deposit = Web3.to_wei(0.000005, "ether")
     print("[1] Funding demo agents...")
     for name, acct in [("Good Agent", GOOD_AGENT), ("Bad Provider", BAD_PROVIDER)]:
         tx = {
@@ -125,39 +133,49 @@ def main():
         bal = w3.eth.get_balance(acct.address)
         print(f"  {name}: {Web3.from_wei(bal, 'ether')} BTC")
 
-    # Register agents
-    print("\n[2] Registering agents on-chain...")
-    min_deposit = deposit // 2
+    # Register with ERC-8004 Identity Registry
+    print("\n[2] Registering agents with ERC-8004...")
+    identity = w3.eth.contract(address=Web3.to_checksum_address(IDENTITY_REGISTRY), abi=IDENTITY_ABI)
+    send_tx(GOOD_AGENT, identity.functions.register("https://agent-court.notruefireman.org/agents/good-agent"))
+    print("  Good Agent: ERC-8004 identity registered")
+    send_tx(BAD_PROVIDER, identity.functions.register("https://agent-court.notruefireman.org/agents/bad-provider"))
+    print("  Bad Provider: ERC-8004 identity registered")
+
+    # Register agents in AgentCourt contract
+    print("\n[3] Registering agents in AgentCourt...")
+    min_deposit = Web3.to_wei(0.000002, "ether")
     send_tx(GOOD_AGENT, contract.functions.register(), value=min_deposit)
-    print("  Good Agent registered")
+    print("  Good Agent registered + deposited")
     send_tx(BAD_PROVIDER, contract.functions.register(), value=min_deposit)
-    print("  Bad Provider registered")
+    print("  Bad Provider registered + deposited")
 
     # Bad Provider registers a weather service
-    print("\n[3] Bad Provider registers weather service...")
-    terms = h({"service": "weather", "sla": "accurate data", "price": "0.0000001 BTC"})
-    price = Web3.to_wei(0.0000001, "ether")  # 100 gwei
-    bond_req = min_deposit // 4
+    print("\n[4] Bad Provider registers weather service...")
+    terms = h({"service": "weather", "sla": "accurate data", "price": "0.0000005 BTC"})
+    price = Web3.to_wei(0.0000005, "ether")
+    bond_req = Web3.to_wei(0.0000001, "ether")
+    svc_id = contract.functions.serviceCount().call()  # next service ID
     send_tx(BAD_PROVIDER, contract.functions.registerService(terms, price, bond_req))
-    print("  Service registered: Weather API")
+    print(f"  Service registered: Weather API (ID: {svc_id})")
 
     # === HAPPY PATH ===
     print("\n" + "=" * 60)
     print("SCENARIO 1: HAPPY PATH")
     print("=" * 60)
 
-    print("\n[4] Good Agent requests weather service...")
+    print("\n[5] Good Agent requests weather service...")
     req_data = {"city": "sf", "timestamp": int(time.time())}
-    send_tx(GOOD_AGENT, contract.functions.requestService(0, h(req_data)))
-    print("  Request submitted")
+    tx1_id = contract.functions.transactionCount().call()  # next tx ID
+    send_tx(GOOD_AGENT, contract.functions.requestService(svc_id, h(req_data)))
+    print(f"  Request submitted (TX ID: {tx1_id})")
 
-    print("\n[5] Bad Provider fulfills with GOOD data (before going bad)...")
+    print("\n[6] Bad Provider fulfills with GOOD data (before going bad)...")
     resp_data = {"city": "San Francisco", "temp_f": 62, "condition": "Foggy"}
-    send_tx(BAD_PROVIDER, contract.functions.fulfillTransaction(0, h(resp_data)))
+    send_tx(BAD_PROVIDER, contract.functions.fulfillTransaction(tx1_id, h(resp_data)))
     print("  Fulfilled with good data")
 
-    print("\n[6] Good Agent confirms — payment released...")
-    send_tx(GOOD_AGENT, contract.functions.confirmTransaction(0))
+    print("\n[7] Good Agent confirms — payment released...")
+    send_tx(GOOD_AGENT, contract.functions.confirmTransaction(tx1_id))
     print("  Transaction completed! Provider paid.")
 
     good_bal = contract.functions.balances(GOOD_AGENT.address).call()
@@ -170,39 +188,39 @@ def main():
     print("SCENARIO 2: BAD DATA → DISPUTE")
     print("=" * 60)
 
-    print("\n[7] Good Agent requests weather again...")
+    print("\n[8] Good Agent requests weather again...")
     req_data2 = {"city": "sf", "timestamp": int(time.time())}
-    send_tx(GOOD_AGENT, contract.functions.requestService(0, h(req_data2)))
-    print("  Request submitted")
+    tx2_id = contract.functions.transactionCount().call()  # next tx ID
+    send_tx(GOOD_AGENT, contract.functions.requestService(svc_id, h(req_data2)))
+    print(f"  Request submitted (TX ID: {tx2_id})")
 
-    print("\n[8] Bad Provider fulfills with BAD data (999°F, raining fire)...")
+    print("\n[9] Bad Provider fulfills with BAD data (999°F, raining fire)...")
     bad_resp = {"city": "San Francisco", "temp_f": 999, "condition": "Raining fire"}
-    send_tx(BAD_PROVIDER, contract.functions.fulfillTransaction(1, h(bad_resp)))
+    send_tx(BAD_PROVIDER, contract.functions.fulfillTransaction(tx2_id, h(bad_resp)))
     print("  Fulfilled with garbage data!")
 
-    print("\n[9] Good Agent files dispute...")
+    print("\n[10] Good Agent files dispute...")
     evidence = h({"request": req_data2, "response": bad_resp, "complaint": "Data is clearly wrong: 999°F and raining fire"})
-    stake = price  # stake same as service price
+    stake = Web3.to_wei(0.0000001, "ether")  # small stake for demo
     (judge_fee, tier) = contract.functions.getJudgeFee(GOOD_AGENT.address).call()
     print(f"  Judge fee tier: {['district', 'appeals', 'supreme'][tier]} (fee: {Web3.from_wei(judge_fee, 'ether')} BTC)")
-    send_tx(GOOD_AGENT, contract.functions.fileDispute(1, stake, evidence))
+    dispute_id = contract.functions.disputeCount().call()  # next dispute ID
+    send_tx(GOOD_AGENT, contract.functions.fileDispute(tx2_id, stake, evidence))
     print("  Dispute filed!")
 
-    print("\n[10] Bad Provider responds with evidence...")
+    print("\n[11] Bad Provider responds with evidence...")
     defense = h({"defense": "Our sensors showed 999°F, data was accurate"})
-    send_tx(BAD_PROVIDER, contract.functions.respondDispute(0, defense))
+    send_tx(BAD_PROVIDER, contract.functions.respondDispute(dispute_id, defense))
     print("  Defense submitted (weak excuse)")
 
-    print("\n[11] Judge reviews and rules...")
-    # In production, this calls the AI judge via /rule endpoint
-    # For demo, judge rules directly on-chain
-    dispute = contract.functions.getDispute(0).call()
-    print(f"  Dispute: {GOOD_AGENT.address[:10]}... vs {BAD_PROVIDER.address[:10]}...")
+    print("\n[12] Judge reviews and rules...")
+    dispute = contract.functions.getDispute(dispute_id).call()
+    print(f"  Dispute #{dispute_id}: {GOOD_AGENT.address[:10]}... vs {BAD_PROVIDER.address[:10]}...")
     print(f"  Tier: {['district', 'appeals', 'supreme'][dispute[5]]}")
     print(f"  Judge fee: {Web3.from_wei(dispute[4], 'ether')} BTC")
 
     # Judge rules in favor of good agent
-    send_tx(judge_acct, contract.functions.submitRuling(0, GOOD_AGENT.address))
+    send_tx(judge_acct, contract.functions.submitRuling(dispute_id, GOOD_AGENT.address))
     print("  RULING: Good Agent wins!")
 
     # Final balances
