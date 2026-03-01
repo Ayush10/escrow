@@ -113,15 +113,15 @@ def main():
     # Check USDC balance of judge
     judge_usdc = usdc_token.functions.balanceOf(judge_acct.address).call()
     print(f"Judge USDC balance: {judge_usdc / 1e6}")
-    if judge_usdc < usdc(1.0):
-        print("ERROR: Judge needs at least 1.0 USDC to fund demo agents")
+    if judge_usdc < usdc(0.10):
+        print("ERROR: Judge needs at least 0.10 USDC to fund demo agents")
         print(f"Send USDC to {judge_acct.address} on GOAT Testnet3")
         sys.exit(1)
 
     # [1] Fund demo agents with gas (native BTC for tx fees) + USDC
     print("\n[1] Funding demo agents...")
     gas_deposit = Web3.to_wei(0.000005, "ether")
-    usdc_per_agent = usdc(0.50)  # 0.50 USDC each
+    usdc_per_agent = usdc(0.05)  # 0.05 USDC each (1/10th for testing)
 
     for name, acct in [("Good Agent", GOOD_AGENT), ("Bad Provider", BAD_PROVIDER)]:
         # Gas for tx fees
@@ -158,14 +158,14 @@ def main():
 
     # [3] Approve USDC + register in AgentCourt (skip if already registered)
     print("\n[3] Registering agents in AgentCourt...")
-    deposit_amount = usdc(0.20)  # 0.20 USDC deposit
+    deposit_amount = usdc(0.02)  # 0.02 USDC deposit (1/10th for testing)
 
     for name, acct in [("Good Agent", GOOD_AGENT), ("Bad Provider", BAD_PROVIDER)]:
         if contract.functions.isRegistered(acct.address).call():
             print(f"  {name}: already registered")
             # Top up if low
             bal = contract.functions.balances(acct.address).call()
-            if bal < usdc(0.10):
+            if bal < usdc(0.01):
                 send_tx(acct, usdc_token.functions.approve(CONTRACT_ADDR, deposit_amount))
                 send_tx(acct, contract.functions.deposit(deposit_amount))
                 print(f"  {name}: topped up {deposit_amount / 1e6} USDC")
@@ -177,8 +177,8 @@ def main():
     # [4] Bad Provider registers a weather service
     print("\n[4] Bad Provider registers weather service...")
     terms = h({"service": "weather", "sla": "accurate data", "price": "0.05 USDC"})
-    price = usdc(0.05)     # $0.05 per call
-    bond_req = usdc(0.10)  # need at least $0.10 in bond
+    price = usdc(0.005)    # $0.005 per call (1/10th for testing)
+    bond_req = usdc(0.01)  # need at least $0.01 in bond
     svc_id = contract.functions.serviceCount().call()
     send_tx(BAD_PROVIDER, contract.functions.registerService(terms, price, bond_req))
     print(f"  Service registered: Weather API (ID: {svc_id}, price: $0.05)")
@@ -226,7 +226,7 @@ def main():
 
     print("\n[10] Good Agent files dispute...")
     evidence = h({"request": req_data2, "response": bad_resp, "complaint": "Data is clearly wrong"})
-    stake = usdc(0.01)
+    stake = usdc(0.001)
     (judge_fee, tier) = contract.functions.getJudgeFee(GOOD_AGENT.address).call()
     print(f"  Judge fee tier: {['district ($0.05)', 'appeals ($0.10)', 'supreme ($0.20)'][tier]} (fee: {judge_fee / 1e6} USDC)")
     dispute_id = contract.functions.disputeCount().call()
