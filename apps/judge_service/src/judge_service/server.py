@@ -214,6 +214,15 @@ async def _handle_dispute(state: JudgeState, event: DisputeEvent) -> None:
 
     state.storage.store_verdict(verdict, status)
 
+    # Push verdict to public verdict API
+    verdict_api = os.environ.get("VERDICT_API_URL", "")
+    if verdict_api:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                await client.post(f"{verdict_api}/api/verdicts", json=verdict)
+        except Exception:
+            pass  # best-effort push
+
     send_telegram_notification(
         f"dispute={event.dispute_id} winner={winner} reasons={','.join(reason_codes)} confidence={confidence:.2f} tx={tx_hash}"
     )
