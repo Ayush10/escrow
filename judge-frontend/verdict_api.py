@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 DB_PATH = os.environ.get("VERDICT_DB", "/opt/court-api/verdicts.db")
+API_KEY = os.environ.get("VERDICT_API_KEY", "agent-court-judge-key-2026")
 
 app = FastAPI(title="Verdict API", version="1.0.0")
 app.add_middleware(
@@ -59,6 +60,9 @@ def get_verdict(dispute_id: str):
 
 @app.post("/api/verdicts")
 async def post_verdict(request: Request):
+    auth = request.headers.get("Authorization", "")
+    if auth != f"Bearer {API_KEY}":
+        raise HTTPException(403, "Invalid API key")
     data = await request.json()
     dispute_id = str(data.get("disputeId", data.get("dispute_id", "")))
     if not dispute_id:
