@@ -1370,10 +1370,233 @@
         background: rgba(0, 0, 0, 0.5);
         border: 1px solid rgba(255, 255, 255, 0.1);
       }
+
+      /* Landing Page Styles */
+      #landingPage {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 24px;
+        animation: fadeIn 0.8s ease-out;
+      }
+      .landing-nav {
+        width: 100%;
+        max-width: 1200px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 60px;
+      }
+      .landing-logo-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .landing-logo-container img {
+        height: 48px;
+        filter: drop-shadow(0 2px 8px rgba(19, 200, 236, 0.3));
+      }
+      .landing-logo-text {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--text);
+        letter-spacing: -0.02em;
+      }
+      body.dark .landing-logo-text {
+        color: #f8fafc;
+      }
+      .landing-hero {
+        text-align: center;
+        max-width: 800px;
+        margin-bottom: 80px;
+      }
+      .landing-hero h1 {
+        font-size: 56px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+        margin-bottom: 24px;
+        background: linear-gradient(135deg, var(--text) 0%, #64748b 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      body.dark .landing-hero h1 {
+        background: linear-gradient(135deg, #f8fafc 0%, #94a3b8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .landing-hero p {
+        font-size: 20px;
+        color: var(--text-muted);
+        line-height: 1.6;
+        margin-bottom: 40px;
+      }
+      .btn-primary.large {
+        font-size: 18px;
+        padding: 16px 36px;
+        border-radius: 30px;
+        box-shadow: 0 8px 32px rgba(19, 200, 236, 0.4);
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+      }
+      .btn-primary.large:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(19, 200, 236, 0.6);
+      }
+      .landing-features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 32px;
+        width: 100%;
+        max-width: 1200px;
+        margin-bottom: 80px;
+      }
+      .feature-card {
+        padding: 32px;
+        border-radius: 24px;
+        text-align: left;
+        transition: transform 0.3s;
+      }
+      .feature-card:hover {
+        transform: translateY(-4px);
+      }
+      .feature-icon {
+        font-size: 32px;
+        margin-bottom: 20px;
+        background: rgba(19, 200, 236, 0.1);
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 16px;
+        color: var(--brand);
+      }
+      .feature-card h3 {
+        font-size: 20px;
+        margin-bottom: 12px;
+        color: var(--text);
+      }
+      .feature-card p {
+        color: var(--text-muted);
+        line-height: 1.6;
+        font-size: 15px;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
     </style>
   </head>
   <body>
-    <div class="dashboard-shell">
+    <!-- Landing Page View -->
+    <div id="landingPage">
+      <nav class="landing-nav">
+        <div class="landing-logo-container">
+          <img
+            alt="Verdict Protocol Logo"
+            src="/assets/agent_court_logo_light.png"
+            id="landingLogo"
+          />
+          <span class="landing-logo-text">Verdict Protocol</span>
+        </div>
+        <button class="btn-primary" onclick="showDemo()">Launch App</button>
+      </nav>
+
+      <div class="landing-hero">
+        <h1>
+          AI-to-AI Dispute Resolution<br /><span style="color: var(--brand)"
+            >on the Blockchain</span
+          >
+        </h1>
+        <p>
+          A decentralized court protocol where specialized AI agents debate,
+          verify cryptographic evidence, and reach deterministic rulings.
+        </p>
+        <button class="btn-primary large" onclick="showDemo()">
+          Show Demo
+        </button>
+      </div>
+
+      <div class="landing-features">
+        <div class="feature-card glass">
+          <div class="feature-icon">⚖️</div>
+          <h3>Tiered Agent Courts</h3>
+          <p>
+            Disputes seamlessly escalate from highly efficient District Courts
+            to comprehensive Supreme Court models based on staked value.
+          </p>
+        </div>
+        <div class="feature-card glass">
+          <div class="feature-icon">⛓️</div>
+          <h3>Cryptographic Evidence</h3>
+          <p>
+            Verdicts rely on immutable on-chain logs, nullifying spoofed claims
+            and preserving complete receipt integrity.
+          </p>
+        </div>
+        <div class="feature-card glass">
+          <div class="feature-icon">🛡️</div>
+          <h3>Immutable Reputation</h3>
+          <p>
+            Agents build undeniable on-chain track records, maintaining trust
+            logic for distributed and autonomous service networks.
+          </p>
+        </div>
+        <div class="feature-card glass">
+          <div class="feature-icon">🗣️</div>
+          <h3>Multi-Agent Debate</h3>
+          <p>
+            Complex cases involve diverse AI models representing specialized
+            positions to ensure thorough contextual analysis.
+          </p>
+        </div>
+        <div class="feature-card glass">
+          <div class="feature-icon">🔍</div>
+          <h3>Audit Trails</h3>
+          <p>
+            100% transparent reasoning where every logical step of the verdict
+            generation is publicly and cryptographically logged.
+          </p>
+        </div>
+        <div class="feature-card glass">
+          <div class="feature-icon">⚡</div>
+          <h3>Low Latency Resolution</h3>
+          <p>
+            Settle cross-chain digital disputes in seconds with deterministic AI
+            processing rather than waiting months using human courts.
+          </p>
+        </div>
+        <div class="feature-card glass">
+          <div class="feature-icon">🔒</div>
+          <h3>Escrow Integration</h3>
+          <p>
+            Smart contracts automatically and securely disburse disputed funds
+            immediately upon final unappealable verdict.
+          </p>
+        </div>
+        <div class="feature-card glass">
+          <div class="feature-icon">🌐</div>
+          <h3>Decentralized Oracles</h3>
+          <p>
+            Seamless capability to verify real-world off-chain events via
+            integrated decentralized consensus networks and proofs.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard Application View -->
+    <div class="dashboard-shell" id="appDashboard" style="display: none">
       <aside class="sidebar glass">
         <div class="sidebar-header">
           <img
@@ -2824,6 +3047,7 @@
           agentName: "Ayush + Karan and Verdict Protocol",
           agentDescription:
             "Signature identity for Verdict Protocol agent payments",
+          registerAgent: true,
           dryRun: false,
           requestFaucet: false,
         };
@@ -2837,7 +3061,23 @@
         if (res.txHash) {
           text += ` | ${STATE.explorerUrl}/tx/${res.txHash}`;
         }
+        if (res.sender && res.recipient) {
+          text += ` | ${short(res.sender, 8)} -> ${short(res.recipient, 8)}`;
+        }
+        if (typeof res.visibleInDashboardFeed === "boolean") {
+          text += ` | feed=${res.visibleInDashboardFeed ? "visible" : "pending"}`;
+        }
         $("paymentStatus").textContent = text;
+      }
+
+      function showDemo() {
+        document.getElementById("landingPage").style.display = "none";
+        document.getElementById("appDashboard").style.display = "flex";
+        // Initialize dashboard state once shown
+        if (!window.hasBooted) {
+          boot();
+          window.hasBooted = true;
+        }
       }
 
       function wireQuickRunnerUrls() {
@@ -2969,7 +3209,8 @@
         await guarded(connectAndRefresh, "initial connect");
       }
 
-      boot();
+      // We wait to call boot() until the demo is launched, so we don't boot immediately
+      // boot();
     </script>
     <div
       class="modal-overlay"
