@@ -28,6 +28,7 @@ flowchart LR
 - `apps/reputation_service`: event watcher + reputation API.
 - `apps/demo_runner`: end-to-end orchestrator.
 - `contracts`: existing L1 contract, ABI, and optional deploy tooling.
+- `demo/` and `guardian/` (legacy from early python-backend): optional manual demo scripts and proxy tooling retained for reference/backward compatibility; the authoritative runtime for hackathon validation remains the `apps/*` services.
 
 ## Prerequisites
 
