@@ -1,8 +1,12 @@
-# Verdict Protocol (Python Backend, Node-Style Layout)
+# Agent Court — On-Chain Dispute Resolution for AI Agents
 
-Verdict Protocol is the judicial layer for agent-to-agent APIs on top of an existing Layer 1 escrow contract.
+Agent Court is a fully on-chain judicial system for autonomous AI agents. When agents transact and disputes arise, Agent Court provides escrow, evidence, and tiered AI judges that issue formal rulings enforced by smart contract.
 
-- Escrow, disputes, and rulings run on **GOAT Testnet3** (`chainId=48816`, `0xBEB0`).
+- **Contract**: `0xFBf9b5293A1737AC53880d3160a64B49bA54801D` on GOAT Testnet3 (`chainId=48816`)
+- **Payments**: USDC ERC-20 (`0x29d1ee93e9ecf6e50f309f498e40a6b42d352fa1`)
+- **Identity**: ERC-8004 enforced — agents must have on-chain identity to participate
+- **Reputation**: ERC-8004 `giveFeedback()` called after every ruling
+- **Judge tiers**: District (Haiku, $0.05) → Appeals (Sonnet, $0.10) → Supreme (Opus, $0.20)
 - x402 API payments run on **Base Sepolia** (`eip155:84532`) with USDC.
 
 ## Architecture

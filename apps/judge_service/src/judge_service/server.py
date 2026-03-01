@@ -91,11 +91,23 @@ async def _handle_dispute(state: JudgeState, event: DisputeEvent) -> None:
     if dispute is None:
         return
 
-    plaintiff = to_checksum_address(dispute[0])
-    defendant = to_checksum_address(dispute[1])
-    plaintiff_stake = int(dispute[2])
-    defendant_stake = int(dispute[3])
-    root_hash = dispute[4].hex() if hasattr(dispute[4], "hex") else str(dispute[4])
+    # Handle both old struct (plaintiff at 0) and new struct (transactionId at 0)
+    if len(dispute) >= 10:
+        # New AgentCourt: (transactionId, plaintiff, defendant, stake, judgeFee, tier, pEvidence, dEvidence, resolved, winner)
+        plaintiff = to_checksum_address(dispute[1])
+        defendant = to_checksum_address(dispute[2])
+        plaintiff_stake = int(dispute[3])
+        defendant_stake = int(dispute[3])  # same stake
+        dispute_tier = int(dispute[5])
+        root_hash = dispute[6].hex() if hasattr(dispute[6], "hex") else str(dispute[6])
+    else:
+        # Legacy: (plaintiff, defendant, plaintiffStake, defendantStake, evidence...)
+        plaintiff = to_checksum_address(dispute[0])
+        defendant = to_checksum_address(dispute[1])
+        plaintiff_stake = int(dispute[2])
+        defendant_stake = int(dispute[3])
+        dispute_tier = 0
+        root_hash = dispute[4].hex() if hasattr(dispute[4], "hex") else str(dispute[4])
     if not root_hash.startswith("0x"):
         root_hash = "0x" + root_hash
 
@@ -119,6 +131,7 @@ async def _handle_dispute(state: JudgeState, event: DisputeEvent) -> None:
     flags: list[str] = []
     reason_codes: list[str] = []
     confidence = 0.95
+    full_opinion = ""
 
     if not ok:
         reason_codes.append("hash_mismatch")
@@ -133,10 +146,11 @@ async def _handle_dispute(state: JudgeState, event: DisputeEvent) -> None:
         elif logical_winner == "defendant":
             winner = defendant
         else:
-            llm_codes, llm_winner, llm_confidence = state.llm.judge(
+            llm_codes, llm_winner, llm_confidence, full_opinion = state.llm.judge(
                 clause=clause,
                 facts=facts,
                 evidence_summary={"receiptCount": len(receipts), "reasonCodes": reason_codes},
+                tier=dispute_tier,
             )
             reason_codes.extend(llm_codes)
             confidence = llm_confidence
@@ -170,6 +184,7 @@ async def _handle_dispute(state: JudgeState, event: DisputeEvent) -> None:
         "judgeSignature": "",
         "winner": winner,
         "loser": loser,
+        "fullOpinion": full_opinion,
     }
     verdict["verdictHash"] = compute_verdict_hash(verdict)
 
