@@ -2971,7 +2971,11 @@
 
       boot();
     </script>
-    <div class="modal-overlay" id="verdictModal">
+    <div
+      class="modal-overlay"
+      id="verdictModal"
+      onclick="if (event.target === this) this.classList.remove('open');"
+    >
       <div class="modal-content glass">
         <button
           class="modal-close"
