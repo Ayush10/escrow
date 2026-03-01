@@ -4,59 +4,46 @@ FastAPI backend that bridges off-chain judge logic with on-chain smart contract.
 Judge reviews evidence via LLM, submits ruling on-chain via web3.
 
 Endpoints:
-  POST /deposit          — deposit into contract (proxied)
-  POST /dispute          — file dispute + submit arguments
-  POST /respond          — defendant responds with arguments
-  POST /rule             — trigger judge to review and rule (auto or manual)
+  POST /dispute/argue    — plaintiff submits off-chain argument
+  POST /dispute/respond  — defendant submits off-chain argument
+  POST /dispute/data     — submit transaction data (request, response, terms)
+  POST /rule             — trigger judge to review and rule
+  POST /rule/auto        — poll and judge all unresolved disputes
   GET  /disputes         — list all disputes
   GET  /disputes/{id}    — get dispute details + ruling
-  GET  /balance/{addr}   — check agent balance
+  GET  /balance/{addr}   — check agent balance (USDC)
   GET  /status           — contract info
 """
 
 import json
 import os
-import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from web3 import Web3
+from dotenv import load_dotenv
 
 from judge import AIJudge, TieredCourt, Evidence, JudgeRuling
 
 # --- Config ---
+load_dotenv(Path.home() / ".agent-court" / ".env")
+
 RPC_URL = os.environ.get("GOAT_RPC_URL", "https://rpc.testnet3.goat.network")
-CONTRACT_ADDR = os.environ.get("CONTRACT_ADDRESS", "")
-JUDGE_PRIVATE_KEY = os.environ.get("JUDGE_PRIVATE_KEY", "")
 CHAIN_ID = int(os.environ.get("CHAIN_ID", "48816"))
+JUDGE_PRIVATE_KEY = os.environ.get("JUDGE_PRIVATE_KEY", "")
 
-# ERC-8004 registries on GOAT Testnet3
-IDENTITY_REGISTRY = "0x556089008Fc0a60cD09390Eca93477ca254A5522"
-REPUTATION_REGISTRY = "0x52B2e79558ea853D58C2Ac5Ddf9a4387d942b4B4"
-VALIDATION_REGISTRY = "0x6193b3EC92f075AB759783A4c8D2dCDa21A71d40"
-X402_API = "https://api.x402.goat.network"
+# Load contract address and ABI from files
+_addr_file = Path.home() / ".agent-court" / "contract_address.txt"
+CONTRACT_ADDR = os.environ.get("CONTRACT_ADDRESS", "")
+if not CONTRACT_ADDR and _addr_file.exists():
+    CONTRACT_ADDR = _addr_file.read_text().strip()
 
-ABI = json.loads("""[
-    {"inputs":[{"internalType":"address","name":"_judge","type":"address"},{"internalType":"uint256","name":"_minDeposit","type":"uint256"},{"internalType":"uint256","name":"_judgeFee","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"},
-    {"inputs":[],"name":"deposit","outputs":[],"stateMutability":"payable","type":"function"},
-    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},
-    {"inputs":[{"internalType":"bytes32","name":"txKey","type":"bytes32"},{"internalType":"bytes32","name":"evidenceHash","type":"bytes32"}],"name":"commitEvidence","outputs":[],"stateMutability":"nonpayable","type":"function"},
-    {"inputs":[{"internalType":"address","name":"defendant","type":"address"},{"internalType":"uint256","name":"stake","type":"uint256"},{"internalType":"bytes32","name":"plaintiffEvidence","type":"bytes32"}],"name":"fileDispute","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},
-    {"inputs":[{"internalType":"uint256","name":"disputeId","type":"uint256"},{"internalType":"bytes32","name":"evidence","type":"bytes32"}],"name":"respondDispute","outputs":[],"stateMutability":"nonpayable","type":"function"},
-    {"inputs":[{"internalType":"uint256","name":"disputeId","type":"uint256"},{"internalType":"address","name":"winner","type":"address"}],"name":"submitRuling","outputs":[],"stateMutability":"nonpayable","type":"function"},
-    {"inputs":[{"internalType":"uint256","name":"disputeId","type":"uint256"}],"name":"getDispute","outputs":[{"components":[{"internalType":"address","name":"plaintiff","type":"address"},{"internalType":"address","name":"defendant","type":"address"},{"internalType":"uint256","name":"plaintiffStake","type":"uint256"},{"internalType":"uint256","name":"defendantStake","type":"uint256"},{"internalType":"bytes32","name":"plaintiffEvidence","type":"bytes32"},{"internalType":"bytes32","name":"defendantEvidence","type":"bytes32"},{"internalType":"bool","name":"resolved","type":"bool"},{"internalType":"address","name":"winner","type":"address"}],"internalType":"struct AgentCourt.Dispute","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},
-    {"inputs":[{"internalType":"address","name":"agent","type":"address"}],"name":"getBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-    {"inputs":[{"internalType":"address","name":"agent","type":"address"}],"name":"isEligible","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
-    {"inputs":[],"name":"disputeCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-    {"inputs":[],"name":"judge","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-    {"inputs":[],"name":"minDeposit","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-    {"inputs":[],"name":"judgeFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-    {"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balances","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
-]""")
+_abi_file = Path.home() / ".agent-court" / "abi.json"
+ABI = json.loads(_abi_file.read_text()) if _abi_file.exists() else []
 
 # --- State ---
 # Off-chain arguments storage (on-chain only stores hashes)
@@ -94,19 +81,19 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 # --- Request Models ---
 class DisputeArgs(BaseModel):
     dispute_id: int
-    argument: str  # plaintiff's off-chain argument
+    argument: str
 
 class RespondArgs(BaseModel):
     dispute_id: int
-    argument: str  # defendant's off-chain argument
+    argument: str
 
 class RuleRequest(BaseModel):
     dispute_id: int
-    level: int = 0  # court tier
+    level: int = 0  # court tier (overridden by on-chain tier)
 
 class TransactionData(BaseModel):
     dispute_id: int
-    data: dict  # request, response, terms — whatever the parties want to submit
+    data: dict
 
 
 # --- Endpoints ---
@@ -117,9 +104,12 @@ async def status():
     if contract:
         try:
             info["dispute_count"] = contract.functions.disputeCount().call()
+            info["service_count"] = contract.functions.serviceCount().call()
+            info["transaction_count"] = contract.functions.transactionCount().call()
             info["min_deposit"] = contract.functions.minDeposit().call()
-            info["judge_fee"] = contract.functions.judgeFee().call()
             info["judge"] = contract.functions.judge().call()
+            info["payment_token"] = contract.functions.paymentToken().call()
+            info["require_identity"] = contract.functions.requireIdentity().call()
             info["connected"] = True
         except Exception as e:
             info["error"] = str(e)
@@ -135,8 +125,7 @@ async def get_balance(address: str):
         raise HTTPException(503, "Contract not configured")
     addr = Web3.to_checksum_address(address)
     bal = contract.functions.balances(addr).call()
-    eligible = contract.functions.isEligible(addr).call()
-    return {"address": addr, "balance": bal, "balance_btc": str(bal / 1e18), "eligible": eligible}
+    return {"address": addr, "balance": bal, "balance_usdc": bal / 1e6, "eligible": contract.functions.isEligible(addr).call()}
 
 
 @app.get("/disputes")
@@ -144,23 +133,23 @@ async def list_disputes():
     if not contract:
         raise HTTPException(503, "Contract not configured")
     count = contract.functions.disputeCount().call()
-    disputes = []
+    result = []
     for i in range(count):
         d = contract.functions.getDispute(i).call()
-        disputes.append({
+        result.append({
             "id": i,
-            "plaintiff": d[0],
-            "defendant": d[1],
-            "plaintiff_stake": d[2],
-            "defendant_stake": d[3],
-            "plaintiff_evidence": d[4].hex(),
-            "defendant_evidence": d[5].hex(),
-            "resolved": d[6],
-            "winner": d[7],
+            "transaction_id": d[0],
+            "plaintiff": d[1],
+            "defendant": d[2],
+            "stake": d[3],
+            "judge_fee": d[4],
+            "tier": d[5],
+            "resolved": d[8],
+            "winner": d[9],
             "has_arguments": i in arguments,
             "has_ruling": i in rulings,
         })
-    return {"count": count, "disputes": disputes}
+    return {"count": count, "disputes": result}
 
 
 @app.get("/disputes/{dispute_id}")
@@ -171,20 +160,21 @@ async def get_dispute(dispute_id: int):
         d = contract.functions.getDispute(dispute_id).call()
     except Exception:
         raise HTTPException(404, "Dispute not found")
-    result = {
+    return {
         "id": dispute_id,
-        "plaintiff": d[0],
-        "defendant": d[1],
-        "plaintiff_stake": d[2],
-        "defendant_stake": d[3],
-        "plaintiff_evidence": "0x" + d[4].hex(),
-        "defendant_evidence": "0x" + d[5].hex(),
-        "resolved": d[6],
-        "winner": d[7],
+        "transaction_id": d[0],
+        "plaintiff": d[1],
+        "defendant": d[2],
+        "stake": d[3],
+        "judge_fee": d[4],
+        "tier": d[5],
+        "plaintiff_evidence": "0x" + d[6].hex(),
+        "defendant_evidence": "0x" + d[7].hex(),
+        "resolved": d[8],
+        "winner": d[9],
         "arguments": arguments.get(dispute_id, {}),
         "ruling": rulings.get(dispute_id),
     }
-    return result
 
 
 @app.post("/dispute/argue")
@@ -218,58 +208,41 @@ async def submit_transaction_data(data: TransactionData):
 async def trigger_ruling(req: RuleRequest):
     """Trigger the AI judge to review evidence and submit ruling on-chain.
 
-    Verifies on-chain that:
-    1. Dispute exists and is unresolved
-    2. Judge fee has been paid (frozen in contract)
-    3. Selects judge tier based on on-chain dispute tier
-    Then spawns appropriate judge instance and submits ruling.
+    Reads dispute from chain, verifies fee was paid, calls AI judge at the
+    correct tier, then submits ruling on-chain.
     """
     if not contract or not judge_account:
         raise HTTPException(503, "Contract or judge key not configured")
 
-    # Fetch dispute from chain — this IS the payment verification
-    # If fileDispute() succeeded, the fee is already frozen in the contract
     try:
         d = contract.functions.getDispute(req.dispute_id).call()
     except Exception:
         raise HTTPException(404, "Dispute not found")
 
-    # Dispute struct: transactionId, plaintiff, defendant, stake, judgeFee, tier,
-    #                 plaintiffEvidence, defendantEvidence, resolved, winner
-    tx_id = d[0]
-    plaintiff = d[1]
-    defendant = d[2]
-    stake = d[3]
-    judge_fee_paid = d[4]
-    tier = d[5]
-    p_evidence = d[6]
-    d_evidence = d[7]
-    resolved = d[8]
-    winner = d[9]
+    # Unpack dispute struct
+    tx_id, plaintiff, defendant, stake = d[0], d[1], d[2], d[3]
+    judge_fee_paid, tier = d[4], d[5]
+    p_evidence, d_evidence = d[6], d[7]
+    resolved, winner = d[8], d[9]
 
     if resolved:
         raise HTTPException(400, "Dispute already resolved")
-
-    # Verify payment: judge fee must be > 0 (was frozen when dispute filed)
     if judge_fee_paid == 0:
         raise HTTPException(402, "No judge fee paid for this dispute")
 
-    # Fetch the underlying transaction for context
+    # Fetch underlying transaction for context
     tx_data = {}
     try:
         t = contract.functions.getTransaction(tx_id).call()
         tx_data = {
-            "service_id": t[0],
-            "consumer": t[1],
-            "provider": t[2],
-            "payment": t[3],
-            "request_hash": "0x" + t[4].hex(),
+            "service_id": t[0], "consumer": t[1], "provider": t[2],
+            "payment": t[3], "request_hash": "0x" + t[4].hex(),
             "response_hash": "0x" + t[5].hex(),
         }
     except Exception:
         pass
 
-    # Build evidence
+    # Build evidence bundle
     args = arguments.get(req.dispute_id, {})
     evidence = Evidence(
         dispute_id=req.dispute_id,
@@ -284,8 +257,7 @@ async def trigger_ruling(req: RuleRequest):
         transaction_data={**tx_data, **args.get("transaction_data", {})},
     )
 
-    # Spawn judge at the correct tier (on-chain tier determines LLM model)
-    # tier 0 = district (GLM-4, cheap), tier 1 = appeals (Sonnet), tier 2 = supreme (Opus)
+    # Call AI judge at the on-chain tier
     prior = prior_rulings_store.get(req.dispute_id, [])
     ruling = await court.rule(evidence, level=tier, prior_rulings=prior)
 
@@ -299,7 +271,7 @@ async def trigger_ruling(req: RuleRequest):
             "from": judge_account.address,
             "nonce": nonce,
             "chainId": CHAIN_ID,
-            "gas": 300000,
+            "gas": 500000,
             "gasPrice": w3.eth.gas_price,
         })
         signed = judge_account.sign_transaction(tx)
@@ -316,9 +288,9 @@ async def trigger_ruling(req: RuleRequest):
     ruling_dict["tier"] = tier
     ruling_dict["tier_name"] = ["district", "appeals", "supreme"][min(tier, 2)]
     ruling_dict["on_chain"] = on_chain
+
     rulings[req.dispute_id] = ruling_dict
 
-    # Store for potential appeals
     if req.dispute_id not in prior_rulings_store:
         prior_rulings_store[req.dispute_id] = []
     prior_rulings_store[req.dispute_id].append(ruling_dict)
@@ -328,8 +300,7 @@ async def trigger_ruling(req: RuleRequest):
 
 @app.post("/rule/auto")
 async def auto_judge_poll():
-    """Poll for unresolved disputes and auto-judge them.
-    Call this on a cron or let agents trigger /rule manually."""
+    """Poll for unresolved disputes and auto-judge them."""
     if not contract or not judge_account:
         raise HTTPException(503, "Not configured")
 
@@ -338,8 +309,7 @@ async def auto_judge_poll():
 
     for i in range(count):
         d = contract.functions.getDispute(i).call()
-        resolved = d[8]
-        if not resolved:
+        if not d[8]:  # not resolved
             try:
                 result = await trigger_ruling(RuleRequest(dispute_id=i))
                 judged.append({"dispute_id": i, "result": result})

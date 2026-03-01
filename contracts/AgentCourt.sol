@@ -13,11 +13,21 @@ interface IERC20 {
 interface IIdentityRegistry {
     function ownerOf(uint256 tokenId) external view returns (address);
     function balanceOf(address owner) external view returns (uint256);
+    function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256);
 }
 
-/// @notice Minimal interface for ERC-8004 ReputationRegistry
+/// @notice ERC-8004 ReputationRegistry — giveFeedback per the spec
 interface IReputationRegistry {
-    function updateReputation(address agent, string calldata category, int256 delta) external;
+    function giveFeedback(
+        uint256 agentId,
+        int128 value,
+        uint8 valueDecimals,
+        string calldata tag1,
+        string calldata tag2,
+        string calldata endpoint,
+        string calldata feedbackURI,
+        bytes32 feedbackHash
+    ) external;
 }
 
 /// @title AgentCourt — The clearinghouse for the machine economy
@@ -299,9 +309,9 @@ contract AgentCourt {
         stats[t.provider].totalEarned += payout;
         stats[t.consumer].successfulTransactions++;
 
-        // Reputation boost for both sides
-        try reputationRegistry.updateReputation(t.provider, "service_completed", int256(1)) {} catch {}
-        try reputationRegistry.updateReputation(t.consumer, "service_used", int256(1)) {} catch {}
+        // ERC-8004 reputation feedback
+        _giveFeedback(t.provider, 1, "service", "completed");
+        _giveFeedback(t.consumer, 1, "service", "used");
 
         emit TransactionCompleted(txId, payout);
     }
@@ -324,7 +334,7 @@ contract AgentCourt {
         stats[t.provider].totalEarned += payout;
         stats[t.consumer].successfulTransactions++;
 
-        try reputationRegistry.updateReputation(t.provider, "service_completed", int256(1)) {} catch {}
+        _giveFeedback(t.provider, 1, "service", "auto_completed");
 
         emit TransactionCompleted(txId, payout);
     }
@@ -434,11 +444,29 @@ contract AgentCourt {
         stats[winner].disputesWon++;
         stats[loser].disputesLost++;
 
-        // ERC-8004 reputation
-        try reputationRegistry.updateReputation(winner, "court_wins", int256(1)) {} catch {}
-        try reputationRegistry.updateReputation(loser, "court_losses", int256(-1)) {} catch {}
+        // ERC-8004 reputation feedback
+        _giveFeedback(winner, 1, "court", "won");
+        _giveFeedback(loser, -1, "court", "lost");
 
         emit RulingSubmitted(disputeId, winner, loser, totalStake);
+    }
+
+    // ===== INTERNAL: ERC-8004 REPUTATION =====
+
+    /// Look up agent's ERC-8004 token ID and submit feedback to ReputationRegistry.
+    function _giveFeedback(address agent, int128 value, string memory tag1, string memory tag2) internal {
+        try identityRegistry.tokenOfOwnerByIndex(agent, 0) returns (uint256 agentId) {
+            try reputationRegistry.giveFeedback(
+                agentId,
+                value,
+                0,          // valueDecimals
+                tag1,
+                tag2,
+                "",         // endpoint
+                "",         // feedbackURI
+                bytes32(0)  // feedbackHash
+            ) {} catch {}
+        } catch {}
     }
 
     // ===== EVIDENCE =====

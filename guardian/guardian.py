@@ -2,59 +2,54 @@
 """Agent Court Guardian — reputation-gated reverse proxy with x402 payment.
 
 Drop this in front of any API to get:
-  - On-chain reputation check (AgentCourt bond balance)
+  - On-chain reputation check (AgentCourt USDC balance)
   - ERC-8004 identity verification
-  - x402 payment flow
+  - x402 PAYMENT-REQUIRED headers (standard format)
   - Auto evidence hash commitment
   - Dispute-ready transactions
 
 Usage:
   python3 guardian.py --api http://localhost:3000 --port 8402
-  python3 guardian.py --api http://localhost:3000 --min-balance 0.001
-
-Environment:
-  GOAT_RPC_URL          — GOAT Testnet3 RPC (default: https://rpc.testnet3.goat.network)
-  CONTRACT_ADDRESS      — deployed AgentCourt contract
-  GUARDIAN_PRIVATE_KEY  — guardian's wallet key (for committing evidence)
-  X402_API              — x402 API base URL
+  python3 guardian.py --api http://localhost:3000 --min-balance 0.10
 """
 
+import base64
 import hashlib
 import json
 import os
 import time
-from urllib.parse import urlparse
+from pathlib import Path
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 import httpx
 from web3 import Web3
+from dotenv import load_dotenv
 
 # --- Config ---
+load_dotenv(Path.home() / ".agent-court" / ".env")
+
 RPC_URL = os.environ.get("GOAT_RPC_URL", "https://rpc.testnet3.goat.network")
-CONTRACT_ADDR = os.environ.get("CONTRACT_ADDRESS", "")
-GUARDIAN_KEY = os.environ.get("GUARDIAN_PRIVATE_KEY", "")
-UPSTREAM_API = os.environ.get("UPSTREAM_API", "http://localhost:3000")
-MIN_BALANCE = int(os.environ.get("MIN_BALANCE_WEI", "1000000000000000"))  # 0.001 BTC
-X402_API = os.environ.get("X402_API", "https://api.x402.goat.network")
 CHAIN_ID = int(os.environ.get("CHAIN_ID", "48816"))
+GUARDIAN_KEY = os.environ.get("GUARDIAN_PRIVATE_KEY", os.environ.get("JUDGE_PRIVATE_KEY", ""))
+UPSTREAM_API = os.environ.get("UPSTREAM_API", "http://localhost:3000")
+MIN_BALANCE = int(os.environ.get("MIN_BALANCE_USDC", "100000"))  # 0.10 USDC (6 decimals)
 
-# ERC-8004
+# USDC on GOAT testnet3
+USDC_ADDRESS = "0x29d1ee93e9ecf6e50f309f498e40a6b42d352fa1"
+
+# Load contract
+_addr_file = Path.home() / ".agent-court" / "contract_address.txt"
+CONTRACT_ADDR = os.environ.get("CONTRACT_ADDRESS", "")
+if not CONTRACT_ADDR and _addr_file.exists():
+    CONTRACT_ADDR = _addr_file.read_text().strip()
+
+_abi_file = Path.home() / ".agent-court" / "abi.json"
+ABI = json.loads(_abi_file.read_text()) if _abi_file.exists() else []
+
 IDENTITY_REGISTRY = os.environ.get("IDENTITY_REGISTRY", "0x556089008Fc0a60cD09390Eca93477ca254A5522")
-REPUTATION_REGISTRY = os.environ.get("REPUTATION_REGISTRY", "0x52B2e79558ea853D58C2Ac5Ddf9a4387d942b4B4")
-
-COURT_ABI = json.loads("""[
-    {"inputs":[{"internalType":"address","name":"agent","type":"address"}],"name":"getBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-    {"inputs":[{"internalType":"address","name":"agent","type":"address"}],"name":"isEligible","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
-    {"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balances","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-    {"inputs":[{"internalType":"bytes32","name":"txKey","type":"bytes32"},{"internalType":"bytes32","name":"evidenceHash","type":"bytes32"}],"name":"commitEvidence","outputs":[],"stateMutability":"nonpayable","type":"function"},
-    {"inputs":[{"internalType":"address","name":"agent","type":"address"}],"name":"hasIdentity","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}
-]""")
-
-IDENTITY_ABI = json.loads("""[
-    {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
-]""")
+IDENTITY_ABI = json.loads('[{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]')
 
 # --- Init ---
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
@@ -69,8 +64,8 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 @app.on_event("startup")
 def startup():
     global court, identity, guardian_acct
-    if CONTRACT_ADDR:
-        court = w3.eth.contract(address=Web3.to_checksum_address(CONTRACT_ADDR), abi=COURT_ABI)
+    if CONTRACT_ADDR and ABI:
+        court = w3.eth.contract(address=Web3.to_checksum_address(CONTRACT_ADDR), abi=ABI)
     if IDENTITY_REGISTRY:
         identity = w3.eth.contract(address=Web3.to_checksum_address(IDENTITY_REGISTRY), abi=IDENTITY_ABI)
     if GUARDIAN_KEY:
@@ -79,12 +74,53 @@ def startup():
     print(f"Guardian started")
     print(f"  Upstream: {UPSTREAM_API}")
     print(f"  Contract: {CONTRACT_ADDR or 'NOT SET'}")
-    print(f"  Min balance: {Web3.from_wei(MIN_BALANCE, 'ether')} BTC")
+    print(f"  Min balance: {MIN_BALANCE / 1e6} USDC")
     print(f"  Identity check: {bool(identity)}")
+    print(f"  USDC: {USDC_ADDRESS}")
+
+
+def make_x402_payment_required(agent_addr: str = "") -> Response:
+    """Return a proper x402 402 response with PAYMENT-REQUIRED header."""
+    payment_required = {
+        "x402_version": 1,
+        "accepts": [{
+            "scheme": "exact",
+            "network": f"eip155:{CHAIN_ID}",
+            "asset": USDC_ADDRESS,
+            "amount": str(MIN_BALANCE),
+            "pay_to": CONTRACT_ADDR,
+            "max_timeout_seconds": 300,
+            "extra": {
+                "method": "register_and_deposit",
+                "min_deposit": str(MIN_BALANCE),
+                "identity_required": True,
+                "identity_registry": IDENTITY_REGISTRY,
+            },
+        }],
+        "resource": {
+            "url": UPSTREAM_API,
+            "description": "Agent Court protected API",
+        },
+    }
+    encoded = base64.b64encode(json.dumps(payment_required).encode()).decode()
+
+    return Response(
+        status_code=402,
+        content=json.dumps({
+            "error": "Payment Required",
+            "message": f"Deposit at least {MIN_BALANCE / 1e6} USDC into AgentCourt contract",
+            "contract": CONTRACT_ADDR,
+            "usdc": USDC_ADDRESS,
+            "identity_registry": IDENTITY_REGISTRY,
+            "network": f"eip155:{CHAIN_ID}",
+        }),
+        media_type="application/json",
+        headers={"PAYMENT-REQUIRED": encoded},
+    )
 
 
 def check_reputation(agent_addr: str) -> dict:
-    """Check agent's on-chain reputation. Returns status dict."""
+    """Check agent's on-chain reputation."""
     addr = Web3.to_checksum_address(agent_addr)
     result = {"address": addr, "eligible": False, "balance": 0, "has_identity": False}
 
@@ -110,14 +146,14 @@ def compute_evidence_hash(request_data: bytes, response_data: bytes) -> bytes:
     return hashlib.sha256(request_data + response_data + ts).digest()
 
 
-def commit_evidence_onchain(agent_addr: str, evidence_hash: bytes, nonce: int = 0):
-    """Commit evidence hash on-chain (guardian side)."""
+def commit_evidence_onchain(agent_addr: str, evidence_hash: bytes):
+    """Commit evidence hash on-chain."""
     if not court or not guardian_acct:
         return None
     try:
         tx_key = Web3.solidity_keccak(
             ["address", "address", "uint256"],
-            [guardian_acct.address, Web3.to_checksum_address(agent_addr), nonce]
+            [guardian_acct.address, Web3.to_checksum_address(agent_addr), int(time.time())]
         )
         tx = court.functions.commitEvidence(tx_key, evidence_hash).build_transaction({
             "from": guardian_acct.address,
@@ -138,8 +174,8 @@ def commit_evidence_onchain(agent_addr: str, evidence_hash: bytes, nonce: int = 
 async def get_reputation(address: str):
     """Public endpoint: check any agent's reputation."""
     rep = check_reputation(address)
-    rep["balance_btc"] = str(Web3.from_wei(rep["balance"], "ether"))
-    rep["min_required_btc"] = str(Web3.from_wei(MIN_BALANCE, "ether"))
+    rep["balance_usdc"] = rep["balance"] / 1e6
+    rep["min_required_usdc"] = MIN_BALANCE / 1e6
     return rep
 
 
@@ -150,47 +186,27 @@ async def health():
         "upstream": UPSTREAM_API,
         "contract": CONTRACT_ADDR,
         "connected": w3.is_connected(),
+        "payment_token": USDC_ADDRESS,
     }
 
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def proxy(request: Request, path: str):
-    """Main proxy: check reputation, handle x402, forward to upstream."""
+    """Main proxy: check reputation, return x402 if insufficient, forward to upstream."""
 
-    # Extract agent address from header
+    # Extract agent address from header or x402 payment
     agent_addr = request.headers.get("X-Agent-Address", "")
     if not agent_addr:
-        # Check x402 payment header for address
         agent_addr = request.headers.get("X-Payment-Address", "")
 
     if not agent_addr:
-        return JSONResponse(
-            status_code=402,
-            content={
-                "error": "Agent address required",
-                "header": "X-Agent-Address",
-                "message": "Include your EVM address in X-Agent-Address header",
-                "contract": CONTRACT_ADDR,
-                "min_deposit": str(Web3.from_wei(MIN_BALANCE, "ether")),
-                "deposit_first": f"Deposit at least {Web3.from_wei(MIN_BALANCE, 'ether')} BTC into AgentCourt contract {CONTRACT_ADDR}",
-            },
-        )
+        return make_x402_payment_required()
 
     # Check reputation
     rep = check_reputation(agent_addr)
 
     if not rep["eligible"]:
-        return JSONResponse(
-            status_code=402,
-            content={
-                "error": "Insufficient reputation",
-                "balance": str(Web3.from_wei(rep["balance"], "ether")),
-                "min_required": str(Web3.from_wei(MIN_BALANCE, "ether")),
-                "contract": CONTRACT_ADDR,
-                "message": f"Deposit at least {Web3.from_wei(MIN_BALANCE, 'ether')} BTC into the AgentCourt contract to use this API",
-                "has_identity": rep["has_identity"],
-            },
-        )
+        return make_x402_payment_required(agent_addr)
 
     # Agent is eligible — forward request to upstream
     body = await request.body()
@@ -211,31 +227,32 @@ async def proxy(request: Request, path: str):
 
             response_body = resp.content
 
-            # Commit evidence hash (async, best-effort)
+            # Commit evidence hash (best-effort, don't block response)
             evidence_hash = compute_evidence_hash(body, response_body)
             tx_hash = commit_evidence_onchain(agent_addr, evidence_hash)
 
-            # Build response with court metadata
-            response_headers = dict(resp.headers)
+            # Build response with court metadata headers
+            response_headers = {}
             response_headers["X-Court-Contract"] = CONTRACT_ADDR
             response_headers["X-Court-Balance"] = str(rep["balance"])
+            response_headers["X-Court-Balance-USDC"] = str(rep["balance"] / 1e6)
             response_headers["X-Court-Eligible"] = "true"
+            response_headers["X-Court-Network"] = f"eip155:{CHAIN_ID}"
             if tx_hash:
                 response_headers["X-Court-Evidence-TX"] = tx_hash
             if rep["has_identity"]:
                 response_headers["X-Court-Identity"] = "verified"
 
-            return JSONResponse(
+            # Return upstream response with court headers
+            return Response(
                 status_code=resp.status_code,
-                content=json.loads(response_body) if resp.headers.get("content-type", "").startswith("application/json") else {"data": response_body.decode("utf-8", errors="replace")},
+                content=response_body,
+                media_type=resp.headers.get("content-type", "application/json"),
                 headers=response_headers,
             )
 
         except httpx.RequestError as e:
-            return JSONResponse(
-                status_code=502,
-                content={"error": f"Upstream error: {str(e)}"},
-            )
+            return JSONResponse(status_code=502, content={"error": f"Upstream error: {str(e)}"})
 
 
 if __name__ == "__main__":
@@ -245,10 +262,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Agent Court Guardian Proxy")
     parser.add_argument("--api", default=UPSTREAM_API, help="Upstream API URL")
     parser.add_argument("--port", type=int, default=8402, help="Guardian port")
-    parser.add_argument("--min-balance", type=float, default=0.001, help="Min balance in BTC")
+    parser.add_argument("--min-balance", type=float, default=0.10, help="Min balance in USDC")
     args = parser.parse_args()
 
     UPSTREAM_API = args.api
-    MIN_BALANCE = int(args.min_balance * 1e18)
+    MIN_BALANCE = int(args.min_balance * 1e6)
 
     uvicorn.run(app, host="0.0.0.0", port=args.port)
