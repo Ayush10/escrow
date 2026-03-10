@@ -23,6 +23,28 @@ class AnchorRequest(BaseModel):
     agreementId: str
 
 
+def _logical_receipt_fields(receipt: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schemaVersion": receipt.get("schemaVersion"),
+        "chainId": receipt.get("chainId"),
+        "contractAddress": receipt.get("contractAddress"),
+        "agreementId": receipt.get("agreementId"),
+        "clauseHash": receipt.get("clauseHash"),
+        "sequence": receipt.get("sequence"),
+        "eventType": receipt.get("eventType"),
+        "actorId": receipt.get("actorId"),
+        "counterpartyId": receipt.get("counterpartyId"),
+        "requestId": receipt.get("requestId"),
+        "payloadHash": receipt.get("payloadHash"),
+        "prevHash": receipt.get("prevHash"),
+        "metadata": receipt.get("metadata", {}),
+    }
+
+
+def _same_logical_receipt(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    return _logical_receipt_fields(left) == _logical_receipt_fields(right)
+
+
 @router.post("/clauses")
 def post_clause(payload: ArbitrationClause, state: ServerState = Depends(get_state)) -> dict[str, Any]:
     clause = payload.model_dump()
@@ -95,6 +117,57 @@ def get_agreement(agreement_id: str, state: ServerState = Depends(get_state)) ->
     }
 
 
+@router.get("/agreements/{agreement_id}/export")
+def export_agreement(agreement_id: str, state: ServerState = Depends(get_state)) -> dict[str, Any]:
+    """Return a complete evidence bundle suitable for audit or download."""
+    clause = state.storage.get_clause_by_agreement(agreement_id)
+    if not clause:
+        raise HTTPException(status_code=404, detail="clause not found")
+
+    receipts = state.storage.list_receipts(agreement_id=agreement_id)
+    anchor = state.storage.get_anchor(agreement_id)
+
+    chain_ok = True
+    chain_errors: list[str] = []
+    if receipts:
+        chain = verify_receipt_chain(receipts)
+        chain_ok = chain.ok
+        chain_errors = chain.errors
+
+    expected_root = None
+    root_match = None
+    if anchor:
+        expected_root = compute_anchor_root([r["receiptHash"] for r in receipts]) if receipts else "0x0"
+        root_match = expected_root == anchor["rootHash"]
+
+    return {
+        "schemaVersion": "1.0.0",
+        "exportType": "evidence_bundle",
+        "agreementId": agreement_id,
+        "clause": clause,
+        "receipts": receipts,
+        "receiptCount": len(receipts),
+        "anchor": anchor,
+        "receiptChain": {
+            "valid": chain_ok,
+            "errors": chain_errors,
+            "receiptHashes": [r["receiptHash"] for r in receipts],
+        },
+        "root": {
+            "expected": expected_root,
+            "anchored": anchor["rootHash"] if anchor else None,
+            "matched": root_match,
+        },
+        "integrity": {
+            "clauseHash": clause.get("clauseHash"),
+            "clauseHashValid": clause.get("clauseHash") == compute_clause_hash(clause) if clause.get("clauseHash") else None,
+            "chainValid": chain_ok,
+            "rootAnchored": anchor is not None,
+            "rootMatched": root_match,
+        },
+    }
+
+
 @router.get("/agreements")
 def list_agreements(
     limit: int = Query(default=200, ge=1, le=2000),
@@ -139,6 +212,34 @@ def post_receipt(payload: EventReceipt, state: ServerState = Depends(get_state))
     if receipt["receiptHash"] != computed:
         raise HTTPException(status_code=400, detail=f"receiptHash mismatch expected={computed}")
 
+    existing_by_id = state.storage.get_receipt(receipt["receiptId"])
+    if existing_by_id:
+        if existing_by_id.get("receiptHash") == receipt["receiptHash"]:
+            return {
+                "ok": True,
+                "receiptId": existing_by_id["receiptId"],
+                "receiptHash": existing_by_id["receiptHash"],
+                "idempotent": True,
+            }
+        raise HTTPException(status_code=409, detail="receipt_id_conflict")
+
+    existing_at_sequence = state.storage.get_receipt_by_sequence(
+        receipt["agreementId"],
+        int(receipt["sequence"]),
+    )
+    if existing_at_sequence:
+        if _same_logical_receipt(existing_at_sequence, receipt):
+            return {
+                "ok": True,
+                "receiptId": existing_at_sequence["receiptId"],
+                "receiptHash": existing_at_sequence["receiptHash"],
+                "idempotent": True,
+            }
+        raise HTTPException(
+            status_code=409,
+            detail="receipt_sequence_conflict",
+        )
+
     existing = state.storage.list_receipts(agreement_id=receipt["agreementId"])
     chain = verify_receipt_chain(existing + [receipt])
     if not chain.ok:
@@ -179,6 +280,26 @@ def anchor_receipts(payload: AnchorRequest, state: ServerState = Depends(get_sta
     receipt_hashes = [r["receiptHash"] for r in receipts]
     receipt_ids = [r["receiptId"] for r in receipts]
     root_hash = compute_anchor_root(receipt_hashes)
+    existing_anchor = state.storage.get_anchor(payload.agreementId)
+
+    if existing_anchor:
+        if existing_anchor["rootHash"] == root_hash and existing_anchor["receiptIds"] == receipt_ids:
+            return {
+                "agreementId": payload.agreementId,
+                "rootHash": existing_anchor["rootHash"],
+                "txHash": existing_anchor["txHash"],
+                "receiptIds": existing_anchor["receiptIds"],
+                "idempotent": True,
+            }
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "anchor_conflict",
+                "agreementId": payload.agreementId,
+                "existingRootHash": existing_anchor["rootHash"],
+                "currentRootHash": root_hash,
+            },
+        )
 
     tx = state.escrow.commit_evidence_hash(payload.agreementId, root_hash)
     state.storage.store_anchor(payload.agreementId, root_hash, tx.tx_hash, receipt_ids)
