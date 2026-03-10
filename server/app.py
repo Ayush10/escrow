@@ -27,7 +27,10 @@ from pydantic import BaseModel
 from web3 import Web3
 from dotenv import load_dotenv
 
-from judge import AIJudge, TieredCourt, Evidence, JudgeRuling
+try:
+    from .judge import AIJudge, TieredCourt, Evidence, JudgeRuling
+except ImportError:
+    from judge import AIJudge, TieredCourt, Evidence, JudgeRuling
 
 # --- Config ---
 load_dotenv(Path.home() / ".agent-court" / ".env")
