@@ -12,6 +12,7 @@ class DisputeEvent:
     plaintiff: str
     defendant: str
     block_number: int
+    tx_hash: str | None = None
 
 
 class DisputeWatcher:
@@ -33,6 +34,7 @@ class DisputeWatcher:
                     plaintiff=args.get("plaintiff", ""),
                     defendant=args.get("defendant", ""),
                     block_number=block_num,
+                    tx_hash=log.get("transactionHash"),
                 )
             )
 

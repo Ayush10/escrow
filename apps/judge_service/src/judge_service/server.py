@@ -8,17 +8,19 @@ from typing import Any
 
 import httpx
 from eth_utils import to_checksum_address
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from verdict_protocol import EscrowClient, compute_verdict_hash, sign_hash_eip191
+from verdict_protocol import EscrowClient
 
 from .fact_extractor import extract_facts
 from .llm_judge import LLMJudge
+from .signer import build_judge_signer
 from .server_state import JudgeState
 from .storage import JudgeStorage
 from .submit_ruling import submit_ruling
 from .telegram_notifier import send_telegram_notification
 from .verifier import verify_evidence_bundle
+from .verdict_package import finalize_verdict_package
 from .watcher import DisputeEvent, DisputeWatcher
 
 
@@ -127,12 +129,14 @@ def create_app() -> FastAPI:
     watcher = DisputeWatcher(escrow)
     storage = JudgeStorage(os.environ.get("SQLITE_PATH", "./data/verdict.db"))
     llm = LLMJudge()
+    signer = build_judge_signer()
 
     app.state.judge_state = JudgeState(
         storage=storage,
         escrow=escrow,
         watcher=watcher,
         llm=llm,
+        signer=signer,
         evidence_url=os.environ.get("EVIDENCE_SERVICE_URL", "http://127.0.0.1:4001"),
     )
 
@@ -159,6 +163,12 @@ def create_app() -> FastAPI:
             "status": status,
             "capabilities": escrow.capabilities(),
             "escrow": sanity,
+            "signer": {
+                "backend": app.state.judge_state.signer.backend,
+                "address": app.state.judge_state.signer.address,
+                "canSign": app.state.judge_state.signer.can_sign,
+            },
+            "manualReviewCount": app.state.judge_state.storage.manual_review_count(),
         }
 
     @app.get("/api/health")
@@ -167,14 +177,23 @@ def create_app() -> FastAPI:
         return health()
 
     @app.get("/verdicts")
-    def verdicts() -> dict[str, Any]:
-        items = app.state.judge_state.storage.list_verdicts()
+    def verdicts(status: str | None = Query(default=None)) -> dict[str, Any]:
+        items = app.state.judge_state.storage.list_verdicts(status=status)
         return {"count": len(items), "items": items}
 
     @app.get("/api/verdicts")
     def api_verdicts() -> dict[str, Any]:
         # Compatibility alias for older frontend API shape.
-        return verdicts()
+        return verdicts(status=None)
+
+    @app.get("/manual-review")
+    def manual_review() -> dict[str, Any]:
+        items = app.state.judge_state.storage.list_manual_review()
+        return {"count": len(items), "items": items}
+
+    @app.get("/api/manual-review")
+    def api_manual_review() -> dict[str, Any]:
+        return manual_review()
 
     @app.get("/verdicts/{dispute_id}")
     def get_verdict(dispute_id: int) -> dict[str, Any]:
@@ -189,6 +208,48 @@ def create_app() -> FastAPI:
     def api_get_verdict(dispute_id: int) -> dict[str, Any]:
         # Compatibility alias for older frontend API shape.
         return get_verdict(dispute_id)
+
+    @app.post("/disputes/{dispute_id}/process")
+    async def process_dispute(dispute_id: int) -> dict[str, Any]:
+        existing = app.state.judge_state.storage.get_verdict_by_dispute(dispute_id)
+        if existing:
+            return {"ok": True, "cached": True, "verdict": existing}
+
+        event = _find_dispute_event(app.state.judge_state, dispute_id)
+        if event is None:
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=404, detail="dispute event not found")
+
+        await _handle_dispute(app.state.judge_state, event)
+        verdict = app.state.judge_state.storage.get_verdict_by_dispute(dispute_id)
+        if verdict is None:
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=500, detail="dispute processing did not produce a verdict")
+
+        return {"ok": True, "cached": False, "verdict": verdict}
+
+    @app.post("/disputes/process-latest")
+    async def process_latest_dispute() -> dict[str, Any]:
+        event = _find_latest_unprocessed_dispute_event(app.state.judge_state)
+        if event is None:
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=404, detail="no unprocessed disputes found")
+
+        existing = app.state.judge_state.storage.get_verdict_by_dispute(event.dispute_id)
+        if existing:
+            return {"ok": True, "cached": True, "verdict": existing}
+
+        await _handle_dispute(app.state.judge_state, event)
+        verdict = app.state.judge_state.storage.get_verdict_by_dispute(event.dispute_id)
+        if verdict is None:
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=500, detail="dispute processing did not produce a verdict")
+
+        return {"ok": True, "cached": False, "verdict": verdict}
 
     return app
 
@@ -210,6 +271,22 @@ async def _watch_loop(state: JudgeState) -> None:
             pass
 
         await asyncio.sleep(poll_sec)
+
+
+def _find_dispute_event(state: JudgeState, dispute_id: int) -> DisputeEvent | None:
+    events, _ = state.watcher.poll(from_block=0)
+    for event in reversed(events):
+        if int(event.dispute_id) == int(dispute_id):
+            return event
+    return None
+
+
+def _find_latest_unprocessed_dispute_event(state: JudgeState) -> DisputeEvent | None:
+    events, _ = state.watcher.poll(from_block=0)
+    for event in reversed(events):
+        if not state.storage.is_processed(event.dispute_id):
+            return event
+    return None
 
 
 async def _handle_dispute(state: JudgeState, event: DisputeEvent) -> None:
@@ -318,6 +395,7 @@ async def _handle_dispute(state: JudgeState, event: DisputeEvent) -> None:
         "verdictId": str(uuid.uuid4()),
         "disputeId": str(event.dispute_id),
         "transactionId": str(transaction_id) if transaction_id is not None else None,
+        "disputeTxHash": event.tx_hash,
         "chainId": int(os.environ.get("GOAT_CHAIN_ID", "48816")),
         "contractAddress": os.environ.get("ESCROW_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000000"),
         "agreementId": agreement_id,
@@ -344,19 +422,28 @@ async def _handle_dispute(state: JudgeState, event: DisputeEvent) -> None:
         "winner": winner,
         "loser": loser,
         "fullOpinion": full_opinion,
+        "processedAtMs": int(time.time() * 1000),
+        "submitTxHash": None,
     }
-    verdict["verdictHash"] = compute_verdict_hash(verdict)
-
-    judge_key = os.environ.get("JUDGE_PRIVATE_KEY", "")
-    if judge_key:
-        verdict["judgeSignature"] = sign_hash_eip191(judge_key, verdict["verdictHash"])
-
     status = "manual_review"
+    review_reason = None
     tx_hash = None
+    expected_judge = state.escrow.judge_address()
+    verdict, package_errors = finalize_verdict_package(
+        verdict,
+        state.signer,
+        judge_address=expected_judge,
+    )
 
-    if confidence >= 0.7:
+    if package_errors:
+        verdict["flags"].extend(package_errors)
+
+    if confidence < 0.7:
+        review_reason = "low_confidence"
+    elif package_errors:
+        review_reason = "signer_or_schema_error"
+    else:
         authorized = False
-        expected_judge = state.escrow.judge_address()
         if expected_judge and state.escrow.account:
             authorized = to_checksum_address(state.escrow.account.address) == expected_judge
 
@@ -364,14 +451,17 @@ async def _handle_dispute(state: JudgeState, event: DisputeEvent) -> None:
             submit = submit_ruling(state.escrow, event.dispute_id, verdict)
             tx_hash = submit["txHash"]
             status = "submitted"
+        else:
+            review_reason = "judge_not_authorized"
 
     if status == "manual_review":
         verdict["flags"].append("needs_manual_review")
+        if review_reason:
+            verdict["flags"].append(f"manual_review:{review_reason}")
 
     verdict["submitTxHash"] = tx_hash
-    verdict["processedAtMs"] = int(time.time() * 1000)
 
-    state.storage.store_verdict(verdict, status)
+    state.storage.store_verdict(verdict, status, review_reason=review_reason)
 
     # Push verdict to public verdict API
     verdict_api = os.environ.get("VERDICT_API_URL", "")

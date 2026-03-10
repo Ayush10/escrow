@@ -19,8 +19,8 @@ IDENTITY_TESTNET3 = "0x556089008Fc0a60cD09390Eca93477ca254A5522"
 REGISTRATION_TOPIC = "0xca52e62c367d81bb2e328eb795f7c7ba24afb478408a26c0e201d155c449bc4a"
 USDC = "0x29d1ee93e9ecf6e50f309f498e40a6b42d352fa1"
 USDT = "0xdce0af57e8f2ce957b3838cd2a2f3f3677965dd3"
-DEFAULT_AGENT_NAME = "Ayush + Karan and Verdict Protocol"
-DEFAULT_AGENT_DESCRIPTION = "Signature identity for Verdict Protocol agent payments"
+DEFAULT_AGENT_NAME = "Verdict Protocol Operator"
+DEFAULT_AGENT_DESCRIPTION = "Agent identity for Verdict Protocol payment and arbitration flows"
 
 ERC20_ABI = [
     {

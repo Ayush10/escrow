@@ -61,6 +61,26 @@ def _wait_for_health(url: str, timeout: float = 45.0) -> None:
     raise TimeoutError(f"service did not become healthy: {url}")
 
 
+def _wait_for_verdict(
+    agreement_id: str,
+    *,
+    base_url: str = "http://127.0.0.1:4002",
+    timeout: float = 45.0,
+) -> dict:
+    start = time.time()
+    with httpx.Client(timeout=5) as client:
+        while time.time() - start < timeout:
+            try:
+                verdicts = client.get(f"{base_url}/verdicts").json()
+                items = verdicts.get("items", [])
+                if any(item.get("agreementId") == agreement_id for item in items):
+                    return verdicts
+            except Exception:
+                pass
+            time.sleep(1)
+    raise TimeoutError(f"verdict did not appear for agreement: {agreement_id}")
+
+
 def _run_json_command(cmd: list[str]) -> dict:
     result = subprocess.run(cmd, check=True, capture_output=True, text=True, env=_service_env())
     stdout = result.stdout.strip()
@@ -113,8 +133,9 @@ def main() -> None:
         happy = _run_json_command([sys.executable, "-m", "consumer_agent.run_happy_path"])
         dispute = _run_json_command([sys.executable, "-m", "consumer_agent.run_dispute_path"])
 
+        verdicts = _wait_for_verdict(dispute["agreementId"])
+
         with httpx.Client(timeout=10) as client:
-            verdicts = client.get("http://127.0.0.1:4002/verdicts").json()
             reputations = client.get("http://127.0.0.1:4003/reputation").json()
 
         summary = {

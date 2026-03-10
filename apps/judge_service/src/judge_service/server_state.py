@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from verdict_protocol import EscrowClient
 
 from .llm_judge import LLMJudge
+from .signer import JudgeSigner
 from .storage import JudgeStorage
 from .watcher import DisputeWatcher
 
@@ -15,4 +16,5 @@ class JudgeState:
     escrow: EscrowClient
     watcher: DisputeWatcher
     llm: LLMJudge
+    signer: JudgeSigner
     evidence_url: str

@@ -55,6 +55,7 @@ async def test_judge_pipeline_deterministic_submission(monkeypatch):
 
         from judge_service.server import _handle_dispute
         from judge_service.server_state import JudgeState
+        from judge_service.signer import build_judge_signer
         from judge_service.storage import JudgeStorage
         from judge_service.watcher import DisputeEvent
 
@@ -147,6 +148,7 @@ async def test_judge_pipeline_deterministic_submission(monkeypatch):
             escrow=FakeEscrow(dispute),
             watcher=None,
             llm=FakeLLM(),
+            signer=build_judge_signer(),
             evidence_url="http://unused",
         )
 
@@ -164,10 +166,19 @@ async def test_judge_pipeline_deterministic_submission(monkeypatch):
 
         await _handle_dispute(
             fake_state,
-            DisputeEvent(dispute_id=1, plaintiff=plaintiff.address, defendant=defendant.address, block_number=1),
+            DisputeEvent(
+                dispute_id=1,
+                plaintiff=plaintiff.address,
+                defendant=defendant.address,
+                block_number=1,
+                tx_hash="0x" + "4" * 64,
+            ),
         )
 
         verdicts = fake_state.storage.list_verdicts()
         assert verdicts
         assert verdicts[0]["status"] == "submitted"
         assert verdicts[0]["winner"].lower() == plaintiff.address.lower()
+        assert verdicts[0]["judgeSignature"].startswith("0x")
+        assert verdicts[0]["judgeSignerBackend"] == "env"
+        assert verdicts[0]["disputeTxHash"] == "0x" + "4" * 64
