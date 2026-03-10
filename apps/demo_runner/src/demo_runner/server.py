@@ -27,8 +27,16 @@ DEFAULT_ESCROW_CONTRACT = "0xFBf9b5293A1737AC53880d3160a64B49bA54801D"
 
 def _contract_sanity() -> dict[str, Any]:
     rpc_url = os.environ.get("GOAT_RPC_URL", "https://rpc.testnet3.goat.network")
-    contract_address = os.environ.get("ESCROW_CONTRACT_ADDRESS", DEFAULT_ESCROW_CONTRACT)
+    deployment_mode = os.environ.get("ESCROW_CONTRACT_MODE", "legacy").lower() or "legacy"
+    contract_address = (
+        os.environ.get("ESCROW_COURT_ADDRESS")
+        if deployment_mode == "split"
+        else os.environ.get("ESCROW_CONTRACT_ADDRESS", DEFAULT_ESCROW_CONTRACT)
+    ) or DEFAULT_ESCROW_CONTRACT
     dry_run = os.environ.get("ESCROW_DRY_RUN", "0") == "1"
+    vault_address = os.environ.get("ESCROW_VAULT_ADDRESS")
+    registry_address = os.environ.get("ESCROW_JUDGE_REGISTRY_ADDRESS") or os.environ.get("ESCROW_REGISTRY_ADDRESS")
+    evidence_anchor_address = os.environ.get("ESCROW_EVIDENCE_ANCHOR_ADDRESS")
     try:
         w3 = Web3(Web3.HTTPProvider(rpc_url))
         connected = w3.is_connected()
@@ -38,13 +46,24 @@ def _contract_sanity() -> dict[str, Any]:
         connected = False
         code_size = 0
         has_code = False
-    return {
+    payload: dict[str, Any] = {
         "rpcConnected": connected,
         "contractAddress": contract_address,
         "contractHasCode": has_code,
         "contractCodeSize": code_size,
         "dryRun": dry_run,
+        "deploymentMode": deployment_mode,
     }
+    if deployment_mode == "split":
+        payload.update(
+            {
+                "courtAddress": contract_address,
+                "vaultAddress": vault_address,
+                "judgeRegistryAddress": registry_address,
+                "evidenceAnchorAddress": evidence_anchor_address,
+            }
+        )
+    return payload
 
 
 class RunRequest(BaseModel):
@@ -98,6 +117,7 @@ def health() -> dict[str, Any]:
 def config() -> dict[str, Any]:
     sanity = _contract_sanity()
     runner_port = int(os.environ.get("DEMO_RUNNER_PORT", "4004"))
+    ipfs_gateway = os.environ.get("IPFS_GATEWAY_BASE_URL", "https://gateway.pinata.cloud/ipfs")
     return {
         "contractAddress": sanity["contractAddress"],
         "chainId": int(os.environ.get("GOAT_CHAIN_ID", "48816")),
@@ -114,6 +134,15 @@ def config() -> dict[str, Any]:
         "payment": {
             "network": os.environ.get("X402_NETWORK", "eip155:84532"),
             "asset": os.environ.get("X402_PAYMENT_ASSET", "USDC"),
+        },
+        "ipfs": {
+            "mode": os.environ.get("IPFS_MODE", "auto"),
+            "gatewayBaseUrl": ipfs_gateway,
+            "localStorePath": os.environ.get("IPFS_LOCAL_STORE_PATH", "./data/ipfs"),
+        },
+        "mcp": {
+            "enabled": True,
+            "command": "uv run python -m protocol_mcp.server",
         },
         "mockMode": os.environ.get("X402_ALLOW_MOCK", "") == "1"
             or os.environ.get("ESCROW_DRY_RUN", "") == "1",

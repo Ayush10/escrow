@@ -2006,6 +2006,8 @@
           reputation: "",
         },
         explorerUrl: "https://explorer.testnet3.goat.network",
+        ipfsGatewayBaseUrl: "https://gateway.pinata.cloud/ipfs",
+        mcp: null,
         currentRunId: null,
         stream: null,
         judgeWallet: "0x00289Dbbb86b64881CEA492D14178CF886b066Be",
@@ -2021,6 +2023,13 @@
         if (!v || typeof v !== "string") return "-";
         if (v.length <= n + 4) return v;
         return `${v.slice(0, n)}...${v.slice(-4)}`;
+      }
+
+      function ipfsGatewayUrl(uri) {
+        if (!uri || typeof uri !== "string" || !uri.startsWith("ipfs://"))
+          return null;
+        const cid = uri.replace(/^ipfs:\/\//, "");
+        return `${STATE.ipfsGatewayBaseUrl.replace(/\/+$/, "")}/${cid}`;
       }
 
       function fmtTime(ms) {
@@ -2744,6 +2753,9 @@
         STATE.connected = true;
         STATE.explorerUrl =
           cfg.explorerUrl || health.explorer || STATE.explorerUrl;
+        STATE.ipfsGatewayBaseUrl =
+          (cfg.ipfs && cfg.ipfs.gatewayBaseUrl) || STATE.ipfsGatewayBaseUrl;
+        STATE.mcp = cfg.mcp || null;
 
         $("explorerLink").href = STATE.explorerUrl;
         $("contractLine").textContent =
@@ -2930,6 +2942,15 @@
               : "unknown";
         const tx = payload.anchor?.txHash;
         const txLink = tx ? `${STATE.explorerUrl}/tx/${tx}` : null;
+        const anchorMode = payload.anchor?.anchorMode || "unknown";
+        const bundleUri =
+          payload.anchor?.bundleUri ||
+          (payload.anchor?.bundleCid ? `ipfs://${payload.anchor.bundleCid}` : null);
+        const bundleCid =
+          payload.anchor?.bundleCid ||
+          (bundleUri ? bundleUri.replace(/^ipfs:\/\//, "") : null);
+        const bundleHash = payload.anchor?.bundleHash;
+        const bundleLink = bundleUri ? ipfsGatewayUrl(bundleUri) : null;
         const receipts = payload.receipts || [];
 
         // Summary section
@@ -2938,8 +2959,15 @@
         html += `receipts: ${payload.receiptCount || 0}<br/>`;
         html += `chain: <span class="chip ${chainStatus === "valid" ? "ok" : "bad"}">${chainStatus}</span><br/>`;
         html += `root: <span class="mono" style="word-break:break-all">${payload.root?.anchored || "-"}</span> (${rootStatus})`;
+        html += `<br/>anchor mode: <span class="chip ${anchorMode === "ipfs_onchain" ? "ok" : anchorMode === "offchain_bundle" ? "warn" : "ok"}">${anchorMode}</span>`;
         if (txLink) {
           html += `<br/>anchor tx: <a class="inline-link mono" href="${txLink}" target="_blank">${short(tx, 14)}</a>`;
+        }
+        if (bundleCid) {
+          html += `<br/>bundle cid: ${bundleLink ? `<a class="inline-link mono" href="${bundleLink}" target="_blank">${bundleCid}</a>` : `<span class="mono">${bundleCid}</span>`}`;
+        }
+        if (bundleHash) {
+          html += `<br/>bundle hash: <span class="mono">${short(bundleHash, 18)}</span>`;
         }
         html += `</div>`;
 
@@ -3031,6 +3059,15 @@
         const v = await fetchJson(
           `${STATE.services.judge}/verdicts/${disputeId}`,
         );
+        let anchor = null;
+        if (v.agreementId) {
+          try {
+            const agreement = await fetchJson(
+              `${STATE.services.evidence}/agreements/${encodeURIComponent(v.agreementId)}`,
+            );
+            anchor = agreement.anchor || null;
+          } catch (_) {}
+        }
         const rawOpinion = verdictOpinionText(v);
         const formattedHTML = formatOpinionHTML(rawOpinion);
 
@@ -3053,6 +3090,17 @@
         }
         if (v.agreementId) {
           packageHTML += `<div style="grid-column:1/3"><span style="color:var(--text-muted)">Agreement:</span> <span class="mono">${short(v.agreementId, 20)}</span></div>`;
+        }
+        if (anchor?.anchorMode) {
+          packageHTML += `<div><span style="color:var(--text-muted)">Anchor Mode:</span> ${anchor.anchorMode}</div>`;
+        }
+        if (anchor?.bundleCid) {
+          const bundleUri = anchor.bundleUri || `ipfs://${anchor.bundleCid}`;
+          const bundleLink = ipfsGatewayUrl(bundleUri);
+          packageHTML += `<div style="grid-column:1/3"><span style="color:var(--text-muted)">Bundle CID:</span> ${bundleLink ? `<a class="inline-link mono" target="_blank" href="${bundleLink}">${anchor.bundleCid}</a>` : `<span class="mono">${anchor.bundleCid}</span>`}</div>`;
+        }
+        if (anchor?.bundleHash) {
+          packageHTML += `<div style="grid-column:1/3"><span style="color:var(--text-muted)">Bundle Hash:</span> <span class="mono" style="word-break:break-all">${anchor.bundleHash}</span></div>`;
         }
         if (v.submitTxHash) {
           packageHTML += `<div style="grid-column:1/3"><span style="color:var(--text-muted)">Ruling TX:</span> <a class="inline-link mono" target="_blank" href="${STATE.explorerUrl}/tx/${v.submitTxHash}">${v.submitTxHash}</a></div>`;
@@ -3315,6 +3363,12 @@
         const chainId = cfg.chainId || "-";
         const explorer = cfg.explorerUrl || STATE.explorerUrl || "-";
         const mockMode = cfg.mockMode || cfg.dryRun || false;
+        const deploymentMode = cfg.escrow?.deploymentMode || "legacy";
+        const vaultAddress = cfg.escrow?.vaultAddress;
+        const registryAddress = cfg.escrow?.judgeRegistryAddress;
+        const evidenceAnchorAddress = cfg.escrow?.evidenceAnchorAddress;
+        const ipfsMode = cfg.ipfs?.mode || "auto";
+        const mcpCommand = cfg.mcp?.command || null;
 
         let html = `
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
@@ -3322,7 +3376,19 @@
             <div><span style="color:var(--text-muted)">Contract:</span> <span class="mono">${typeof contract === 'string' ? contract.slice(0, 10) + '...' + contract.slice(-6) : '-'}</span></div>
             <div><span style="color:var(--text-muted)">Explorer:</span> <a class="inline-link" href="${explorer}" target="_blank">link</a></div>
             <div><span style="color:var(--text-muted)">Mode:</span> <span class="chip ${mockMode ? 'warn' : 'ok'}" style="font-size:10px;padding:2px 8px">${mockMode ? 'MOCK' : 'LIVE'}</span></div>
+            <div><span style="color:var(--text-muted)">Deployment:</span> <span class="chip ${deploymentMode === "split" ? "ok" : "warn"}" style="font-size:10px;padding:2px 8px">${deploymentMode.toUpperCase()}</span></div>
+            <div><span style="color:var(--text-muted)">IPFS:</span> <span class="mono">${ipfsMode}</span></div>
           </div>`;
+        if (deploymentMode === "split") {
+          html += `<div style="margin-top:10px;font-size:12px;display:grid;grid-template-columns:1fr;gap:6px;">`;
+          if (vaultAddress) html += `<div><span style="color:var(--text-muted)">Vault:</span> <span class="mono">${short(vaultAddress, 18)}</span></div>`;
+          if (registryAddress) html += `<div><span style="color:var(--text-muted)">Judge Registry:</span> <span class="mono">${short(registryAddress, 18)}</span></div>`;
+          if (evidenceAnchorAddress) html += `<div><span style="color:var(--text-muted)">Evidence Anchor:</span> <span class="mono">${short(evidenceAnchorAddress, 18)}</span></div>`;
+          html += `</div>`;
+        }
+        if (mcpCommand) {
+          html += `<div style="margin-top:10px;font-size:12px;"><span style="color:var(--text-muted)">MCP:</span> <span class="mono">${mcpCommand}</span></div>`;
+        }
         panel.innerHTML = html;
 
         // Mock mode banner
