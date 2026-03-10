@@ -32,7 +32,8 @@ flowchart LR
 - `apps/reputation_service`: event watcher + reputation API.
 - `apps/demo_runner`: end-to-end orchestrator.
 - `console`: canonical operator dashboard and demo UI.
-- `contracts`: existing L1 contract, ABI, and optional deploy tooling.
+- `contracts`: legacy monolithic Hardhat contract, ABI, and deploy tooling used by the current Python runtime.
+- `foundry`: new split contract workspace (`Vault`, `JudgeRegistry`, `Court`) for the hierarchical v3 court system.
 - `judge-frontend/`: legacy compatibility frontend host retained for backward compatibility.
 - `demo/` and `guardian/` (legacy from early python-backend): optional manual demo scripts and proxy tooling retained for reference/backward compatibility; the authoritative runtime for hackathon validation remains the `apps/*` services plus `console/`.
 
@@ -51,6 +52,7 @@ Recent `origin/main` updates were integrated additively without replacing the cu
 - Added `console/` as the canonical static dashboard path used by the demo bootstrap and pnpm frontend scripts.
 - Added `agent_demo.py` as a safe runner-driven demo script (no embedded keys).
 - Added `KNOWN_ISSUES.md` with current limitations and priorities.
+- Added `foundry/` as the new split contract system for the next protocol iteration, without breaking the current monolithic runtime.
 
 ## Prerequisites
 
