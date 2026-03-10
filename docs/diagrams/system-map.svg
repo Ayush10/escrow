@@ -1,0 +1,196 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 960" role="img" aria-labelledby="title desc">
+  <title id="title">Verdict Protocol system map</title>
+  <desc id="desc">System map showing agents, console, protocol services, contracts, evidence anchoring, and reputation.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8f4ec" />
+      <stop offset="55%" stop-color="#fffaf1" />
+      <stop offset="100%" stop-color="#f2f7f4" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff8c61" />
+      <stop offset="100%" stop-color="#1f9d8b" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#b9a78d" flood-opacity="0.18" />
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#506177" />
+    </marker>
+    <style>
+      .title { font: 800 42px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #182233; }
+      .subtitle { font: 500 20px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #5f6878; }
+      .section { font: 700 15px 'IBM Plex Sans', 'Segoe UI', sans-serif; letter-spacing: 2px; fill: #7a8090; }
+      .panel { fill: #fffdf8; stroke: #e5d6c3; stroke-width: 2; filter: url(#shadow); }
+      .card { fill: #ffffff; stroke: #ddd1c2; stroke-width: 1.6; filter: url(#shadow); }
+      .cardTitle { font: 700 26px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #1f2736; }
+      .cardBody { font: 500 17px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #5d6676; }
+      .cap { font: 700 15px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #ffffff; }
+      .edge { fill: none; stroke: #506177; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow); }
+      .edgeSoft { fill: none; stroke: #8b97ab; stroke-width: 3; stroke-dasharray: 10 8; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow); }
+      .edgeLabel { font: 600 16px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #677386; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="960" fill="url(#bg)" />
+  <circle cx="1440" cy="110" r="150" fill="#fff1df" opacity="0.7" />
+  <circle cx="140" cy="830" r="180" fill="#eef7f2" opacity="0.8" />
+  <rect x="58" y="56" width="1484" height="86" rx="28" fill="#fff8ef" stroke="#eadcc8" stroke-width="2" />
+  <rect x="84" y="82" width="190" height="12" rx="6" fill="url(#accent)" />
+  <text x="84" y="122" class="title">Verdict Protocol System Map</text>
+  <text x="390" y="122" class="subtitle">Agents transact through the protocol, evidence is anchored, judges rule, and reputation compounds.</text>
+
+  <rect x="54" y="170" width="300" height="730" rx="32" class="panel" />
+  <rect x="390" y="170" width="332" height="730" rx="32" class="panel" />
+  <rect x="758" y="170" width="788" height="730" rx="32" class="panel" />
+
+  <text x="84" y="208" class="section">ACTORS</text>
+  <text x="420" y="208" class="section">ACCESS LAYER</text>
+  <text x="788" y="208" class="section">TRUST FABRIC</text>
+
+  <g>
+    <rect x="84" y="246" width="240" height="118" rx="24" class="card" />
+    <circle cx="126" cy="292" r="22" fill="#ff8c61" />
+    <text x="126" y="298" text-anchor="middle" class="cap">A</text>
+    <text x="160" y="288" class="cardTitle">Consumer Agent</text>
+    <text x="160" y="316" class="cardBody">Creates clauses, pays for service, files disputes.</text>
+  </g>
+
+  <g>
+    <rect x="84" y="430" width="240" height="118" rx="24" class="card" />
+    <circle cx="126" cy="476" r="22" fill="#1f9d8b" />
+    <text x="126" y="482" text-anchor="middle" class="cap">P</text>
+    <text x="160" y="472" class="cardTitle">Provider API</text>
+    <text x="160" y="500" class="cardBody">Returns paid responses and emits evidence-linked output.</text>
+  </g>
+
+  <g>
+    <rect x="84" y="614" width="240" height="118" rx="24" class="card" />
+    <circle cx="126" cy="660" r="22" fill="#2f6df6" />
+    <text x="126" y="666" text-anchor="middle" class="cap">O</text>
+    <text x="160" y="656" class="cardTitle">Operator Console</text>
+    <text x="160" y="684" class="cardBody">Runs demos, watches disputes, audits bundles, checks status.</text>
+  </g>
+
+  <g>
+    <rect x="420" y="246" width="272" height="118" rx="24" class="card" />
+    <circle cx="462" cy="292" r="22" fill="#ff8c61" />
+    <text x="462" y="298" text-anchor="middle" class="cap">M</text>
+    <text x="496" y="288" class="cardTitle">Protocol MCP / SDK</text>
+    <text x="496" y="316" class="cardBody">Agent-facing tools for agreement, anchoring, dispute, and ruling.</text>
+  </g>
+
+  <g>
+    <rect x="420" y="430" width="272" height="118" rx="24" class="card" />
+    <circle cx="462" cy="476" r="22" fill="#2f6df6" />
+    <text x="462" y="482" text-anchor="middle" class="cap">C</text>
+    <text x="496" y="472" class="cardTitle">Protocol Client</text>
+    <text x="496" y="500" class="cardBody">Shared adapter over Court, Vault, Registry, and Anchor.</text>
+  </g>
+
+  <g>
+    <rect x="420" y="614" width="272" height="118" rx="24" class="card" />
+    <circle cx="462" cy="660" r="22" fill="#1f9d8b" />
+    <text x="462" y="666" text-anchor="middle" class="cap">D</text>
+    <text x="496" y="656" class="cardTitle">Demo Runner</text>
+    <text x="496" y="684" class="cardBody">Orchestrates happy path, dispute path, and console feeds.</text>
+  </g>
+
+  <g>
+    <rect x="812" y="238" width="210" height="118" rx="24" class="card" />
+    <circle cx="854" cy="284" r="22" fill="#ff8c61" />
+    <text x="854" y="290" text-anchor="middle" class="cap">E</text>
+    <text x="888" y="280" class="cardTitle">Evidence Service</text>
+    <text x="888" y="308" class="cardBody">Clauses, receipts, bundle build, anchor API.</text>
+  </g>
+
+  <g>
+    <rect x="1060" y="238" width="210" height="118" rx="24" class="card" />
+    <circle cx="1102" cy="284" r="22" fill="#1f9d8b" />
+    <text x="1102" y="290" text-anchor="middle" class="cap">I</text>
+    <text x="1136" y="280" class="cardTitle">IPFS Bundle Store</text>
+    <text x="1136" y="308" class="cardBody">Full off-chain evidence payloads and bundle CIDs.</text>
+  </g>
+
+  <g>
+    <rect x="1308" y="238" width="210" height="118" rx="24" class="card" />
+    <circle cx="1350" cy="284" r="22" fill="#2f6df6" />
+    <text x="1350" y="290" text-anchor="middle" class="cap">A</text>
+    <text x="1384" y="280" class="cardTitle">EvidenceAnchor</text>
+    <text x="1384" y="308" class="cardBody">Stores root hash, bundle hash, and bundle CID on-chain.</text>
+  </g>
+
+  <g>
+    <rect x="812" y="436" width="210" height="118" rx="24" class="card" />
+    <circle cx="854" cy="482" r="22" fill="#2f6df6" />
+    <text x="854" y="488" text-anchor="middle" class="cap">C</text>
+    <text x="888" y="478" class="cardTitle">Court.sol</text>
+    <text x="888" y="506" class="cardBody">Agreements, disputes, evidence submission, rulings, appeals.</text>
+  </g>
+
+  <g>
+    <rect x="1060" y="436" width="210" height="118" rx="24" class="card" />
+    <circle cx="1102" cy="482" r="22" fill="#f4a300" />
+    <text x="1102" y="488" text-anchor="middle" class="cap">V</text>
+    <text x="1136" y="478" class="cardTitle">Vault.sol</text>
+    <text x="1136" y="506" class="cardBody">Deposits, bonds, custody, and settlement balances.</text>
+  </g>
+
+  <g>
+    <rect x="1308" y="436" width="210" height="118" rx="24" class="card" />
+    <circle cx="1350" cy="482" r="22" fill="#1f9d8b" />
+    <text x="1350" y="488" text-anchor="middle" class="cap">J</text>
+    <text x="1384" y="478" class="cardTitle">JudgeRegistry</text>
+    <text x="1384" y="506" class="cardBody">Judge bonds, fees, hierarchy, timeout and appeal chain.</text>
+  </g>
+
+  <g>
+    <rect x="936" y="634" width="210" height="118" rx="24" class="card" />
+    <circle cx="978" cy="680" r="22" fill="#ff8c61" />
+    <text x="978" y="686" text-anchor="middle" class="cap">J</text>
+    <text x="1012" y="676" class="cardTitle">Judge Service</text>
+    <text x="1012" y="704" class="cardBody">Verifies evidence, signs verdicts, submits rulings.</text>
+  </g>
+
+  <g>
+    <rect x="1184" y="634" width="210" height="118" rx="24" class="card" />
+    <circle cx="1226" cy="680" r="22" fill="#2e8b57" />
+    <text x="1226" y="686" text-anchor="middle" class="cap">R</text>
+    <text x="1260" y="676" class="cardTitle">Reputation Service</text>
+    <text x="1260" y="704" class="cardBody">Publishes post-ruling trust signals and standings.</text>
+  </g>
+
+  <path d="M324 305 C360 305, 390 305, 420 305" class="edge" />
+  <path d="M324 489 C370 489, 390 360, 420 305" class="edge" />
+  <path d="M324 673 C370 673, 390 673, 420 673" class="edge" />
+  <path d="M556 364 C556 394, 556 402, 556 430" class="edge" />
+  <path d="M556 614 C556 580, 556 574, 556 548" class="edgeSoft" />
+
+  <path d="M324 327 C460 327, 600 266, 812 266" class="edgeSoft" />
+  <path d="M324 489 C470 489, 610 289, 812 289" class="edgeSoft" />
+  <path d="M324 468 C324 430, 324 402, 324 364" class="edge" />
+
+  <path d="M692 488 C742 488, 768 488, 812 488" class="edge" />
+  <path d="M692 468 C850 468, 930 468, 1060 468" class="edge" />
+  <path d="M692 448 C990 448, 1180 448, 1308 448" class="edge" />
+
+  <path d="M1022 296 C1040 296, 1048 296, 1060 296" class="edge" />
+  <path d="M1270 296 C1288 296, 1296 296, 1308 296" class="edge" />
+
+  <path d="M1022 496 C1080 570, 1108 624, 1138 666" class="edge" />
+  <path d="M1146 634 C1120 550, 1094 420, 1008 318" class="edgeSoft" />
+  <path d="M1146 692 C1170 692, 1176 692, 1184 692" class="edge" />
+
+  <path d="M324 666 C550 666, 790 666, 936 666" class="edgeSoft" />
+  <path d="M324 684 C650 684, 960 712, 1184 712" class="edgeSoft" />
+
+  <text x="202" y="406" class="edgeLabel">x402 paid call</text>
+  <text x="524" y="405" class="edgeLabel">shared adapter</text>
+  <text x="901" y="216" class="edgeLabel">bundle build</text>
+  <text x="985" y="604" class="edgeLabel">DisputeFiled / rule()</text>
+  <text x="1174" y="606" class="edgeLabel">verdict outcomes</text>
+
+  <rect x="1016" y="796" width="456" height="72" rx="20" fill="#fff7eb" stroke="#ead6bb" stroke-width="2" />
+  <text x="1048" y="835" class="cardTitle" style="font-size:24px;">Working mental model</text>
+  <text x="1274" y="835" class="cardBody" text-anchor="middle">stake + evidence + arbitration + reputation</text>
+</svg>

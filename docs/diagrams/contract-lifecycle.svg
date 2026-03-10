@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">Verdict Protocol contract lifecycle</title>
+  <desc id="desc">Contract lifecycle showing states from proposed through active, dispute, resolution, completion, and cancellation.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f7f3eb" />
+      <stop offset="62%" stop-color="#fff9f1" />
+      <stop offset="100%" stop-color="#eef7f2" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#b6a58c" flood-opacity="0.18" />
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#506177" />
+    </marker>
+    <style>
+      .title { font: 800 42px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #182233; }
+      .subtitle { font: 500 20px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #5f6878; }
+      .label { font: 600 16px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #6c7788; }
+      .edge { fill: none; stroke: #506177; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow); }
+      .stateTitle { font: 700 28px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #1f2736; }
+      .stateBody { font: 500 17px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #5f6978; }
+      .badge { font: 700 15px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #ffffff; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="980" fill="url(#bg)" />
+  <circle cx="1460" cy="130" r="160" fill="#fff1df" opacity="0.74" />
+  <circle cx="130" cy="810" r="180" fill="#eef7f2" opacity="0.8" />
+
+  <rect x="58" y="58" width="1484" height="86" rx="28" fill="#fff8ef" stroke="#eadcc8" stroke-width="2" />
+  <text x="84" y="112" class="title">Contract Lifecycle</text>
+  <text x="422" y="112" class="subtitle">How a split Court agreement progresses from creation through completion or arbitration.</text>
+
+  <circle cx="144" cy="270" r="18" fill="#506177" />
+  <text x="178" y="276" class="label">entry</text>
+  <path d="M162 270 C220 270, 244 270, 286 270" class="edge" />
+
+  <g filter="url(#shadow)">
+    <rect x="286" y="210" width="250" height="120" rx="30" fill="#fff4df" stroke="#f0d1a2" stroke-width="2" />
+    <circle cx="332" cy="258" r="22" fill="#f4a300" />
+    <text x="332" y="264" text-anchor="middle" class="badge">P</text>
+    <text x="368" y="254" class="stateTitle">Proposed</text>
+    <text x="368" y="284" class="stateBody">One side locked funds and opened the contract.</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="74" y="210" width="170" height="120" rx="30" fill="#f4f5f7" stroke="#d8dde5" stroke-width="2" />
+    <circle cx="114" cy="258" r="22" fill="#9aa4b2" />
+    <text x="114" y="264" text-anchor="middle" class="badge">X</text>
+    <text x="148" y="254" class="stateTitle" style="font-size:25px;">Canceled</text>
+    <text x="148" y="284" class="stateBody">Proposer withdrew before acceptance.</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="540" y="410" width="260" height="126" rx="32" fill="#eef8f5" stroke="#b9ddd6" stroke-width="2" />
+    <circle cx="586" cy="460" r="22" fill="#1f9d8b" />
+    <text x="586" y="466" text-anchor="middle" class="badge">A</text>
+    <text x="622" y="456" class="stateTitle">Active</text>
+    <text x="622" y="486" class="stateBody">Both parties are funded and the service is live.</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="980" y="410" width="330" height="126" rx="32" fill="#eef4ff" stroke="#b9cdfd" stroke-width="2" />
+    <circle cx="1026" cy="460" r="22" fill="#2f6df6" />
+    <text x="1026" y="466" text-anchor="middle" class="badge">C</text>
+    <text x="1062" y="456" class="stateTitle">Completion Requested</text>
+    <text x="1062" y="486" class="stateBody">Principal asked to finalize. Client can still dispute during the window.</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="560" y="700" width="260" height="126" rx="32" fill="#fff1ea" stroke="#f4b89f" stroke-width="2" />
+    <circle cx="606" cy="750" r="22" fill="#ff8c61" />
+    <text x="606" y="756" text-anchor="middle" class="badge">D</text>
+    <text x="642" y="746" class="stateTitle">Disputed</text>
+    <text x="642" y="776" class="stateBody">Settlement is paused while the judge evaluates evidence.</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="980" y="700" width="260" height="126" rx="32" fill="#fff1ea" stroke="#f0be9f" stroke-width="2" />
+    <circle cx="1026" cy="750" r="22" fill="#d97b53" />
+    <text x="1026" y="756" text-anchor="middle" class="badge">R</text>
+    <text x="1062" y="746" class="stateTitle">Resolved</text>
+    <text x="1062" y="776" class="stateBody">Judge ruled. Appeal window and final settlement logic begin.</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1310" y="210" width="220" height="120" rx="30" fill="#ecf8ef" stroke="#b9dfc5" stroke-width="2" />
+    <circle cx="1352" cy="258" r="22" fill="#2e8b57" />
+    <text x="1352" y="264" text-anchor="middle" class="badge">F</text>
+    <text x="1386" y="254" class="stateTitle">Completed</text>
+    <text x="1386" y="284" class="stateBody">Funds released and the contract is closed.</text>
+  </g>
+
+  <path d="M536 270 C560 270, 586 352, 620 410" class="edge" />
+  <text x="570" y="320" class="label">accept</text>
+
+  <path d="M286 246 C268 246, 256 246, 244 246" class="edge" />
+  <text x="224" y="226" class="label">cancel</text>
+
+  <path d="M800 460 C864 460, 906 460, 980 460" class="edge" />
+  <text x="850" y="438" class="label">request completion</text>
+
+  <path d="M790 432 C986 262, 1142 220, 1310 220" class="edge" />
+  <text x="980" y="264" class="label">complete</text>
+
+  <path d="M1158 410 C1240 332, 1260 280, 1310 270" class="edge" />
+  <text x="1210" y="332" class="label">finalize completion</text>
+
+  <path d="M672 536 C672 604, 684 642, 688 700" class="edge" />
+  <text x="694" y="624" class="label">dispute</text>
+
+  <path d="M1050 536 C1000 620, 930 668, 820 732" class="edge" />
+  <text x="930" y="610" class="label">dispute during window</text>
+
+  <path d="M820 760 C884 760, 920 760, 980 760" class="edge" />
+  <text x="882" y="738" class="label">judge rules</text>
+
+  <path d="M1124 700 C1188 590, 1268 408, 1362 330" class="edge" />
+  <text x="1236" y="544" class="label">finalize ruling</text>
+
+  <path d="M980 794 C914 836, 858 844, 810 792" class="edge" />
+  <text x="872" y="872" class="label">appeal / escalation</text>
+
+  <rect x="86" y="876" width="1426" height="52" rx="18" fill="#fff9ef" stroke="#eadcc8" stroke-width="2" />
+  <text x="799" y="909" text-anchor="middle" class="label">Final states are Canceled or Completed. Disputed and Resolved are intermediate control states.</text>
+</svg>

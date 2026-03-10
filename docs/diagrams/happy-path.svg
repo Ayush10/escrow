@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 920" role="img" aria-labelledby="title desc">
+  <title id="title">Verdict Protocol happy path</title>
+  <desc id="desc">Happy-path transaction flow showing funds locked, receipts generated, evidence bundled, anchored, and agreement completed.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f7f3eb" />
+      <stop offset="60%" stop-color="#fffaf1" />
+      <stop offset="100%" stop-color="#eef7f2" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#b6a58c" flood-opacity="0.16" />
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#506177" />
+    </marker>
+    <style>
+      .title { font: 800 42px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #182233; }
+      .subtitle { font: 500 20px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #5f6878; }
+      .band { fill: #fffdf8; stroke: #e5d6c3; stroke-width: 2; filter: url(#shadow); }
+      .bandLabel { font: 700 16px 'IBM Plex Sans', 'Segoe UI', sans-serif; letter-spacing: 2px; fill: #7d8494; }
+      .step { filter: url(#shadow); }
+      .stepCard { stroke-width: 1.8; }
+      .stepTitle { font: 700 24px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #1f2736; }
+      .stepBody { font: 500 17px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #5f6978; }
+      .num { font: 800 22px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #ffffff; }
+      .edge { fill: none; stroke: #506177; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow); }
+      .edgeLabel { font: 600 16px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #677386; }
+      .pill { font: 700 15px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="920" fill="url(#bg)" />
+  <circle cx="1450" cy="110" r="150" fill="#fff1df" opacity="0.7" />
+  <circle cx="120" cy="760" r="170" fill="#ebf7f0" opacity="0.8" />
+
+  <rect x="58" y="54" width="1484" height="86" rx="28" fill="#fff8ef" stroke="#eadcc8" stroke-width="2" />
+  <text x="84" y="108" class="title">Happy Path Flow</text>
+  <text x="440" y="108" class="subtitle">Normal paid service delivery with evidence preserved and no judge intervention.</text>
+
+  <rect x="60" y="176" width="1480" height="250" rx="34" class="band" />
+  <rect x="60" y="472" width="1480" height="250" rx="34" class="band" />
+  <text x="90" y="214" class="bandLabel">ECONOMIC TRACK</text>
+  <text x="90" y="510" class="bandLabel">EVIDENCE TRACK</text>
+
+  <g class="step">
+    <rect x="110" y="246" width="280" height="128" rx="28" fill="#fff1ea" stroke="#f4b89f" class="stepCard" />
+    <circle cx="146" cy="282" r="22" fill="#ff8c61" />
+    <text x="146" y="290" text-anchor="middle" class="num">1</text>
+    <text x="178" y="286" class="stepTitle">Lock funds</text>
+    <text x="178" y="316" class="stepBody">Provider deposits pool and consumer posts bond into the trust layer.</text>
+  </g>
+
+  <g class="step">
+    <rect x="510" y="246" width="300" height="128" rx="28" fill="#eef4ff" stroke="#b9cdfd" class="stepCard" />
+    <circle cx="546" cy="282" r="22" fill="#2f6df6" />
+    <text x="546" y="290" text-anchor="middle" class="num">2</text>
+    <text x="578" y="286" class="stepTitle">Open agreement</text>
+    <text x="578" y="316" class="stepBody">Protocol client proposes and accepts the Court contract for the transaction.</text>
+  </g>
+
+  <g class="step">
+    <rect x="1110" y="246" width="320" height="128" rx="28" fill="#ecf8ef" stroke="#b9dfc5" class="stepCard" />
+    <circle cx="1146" cy="282" r="22" fill="#2e8b57" />
+    <text x="1146" y="290" text-anchor="middle" class="num">6</text>
+    <text x="1178" y="286" class="stepTitle">Complete agreement</text>
+    <text x="1178" y="316" class="stepBody">Client releases settlement. The contract closes cleanly without arbitration.</text>
+  </g>
+
+  <g class="step">
+    <rect x="290" y="542" width="300" height="128" rx="28" fill="#fff4df" stroke="#f0d1a2" class="stepCard" />
+    <circle cx="326" cy="578" r="22" fill="#f4a300" />
+    <text x="326" y="586" text-anchor="middle" class="num">3</text>
+    <text x="358" y="582" class="stepTitle">Create clause</text>
+    <text x="358" y="612" class="stepBody">Consumer creates the arbitration clause and signs the initial request receipt.</text>
+  </g>
+
+  <g class="step">
+    <rect x="690" y="542" width="320" height="128" rx="28" fill="#eef8f5" stroke="#b9ddd6" class="stepCard" />
+    <circle cx="726" cy="578" r="22" fill="#1f9d8b" />
+    <text x="726" y="586" text-anchor="middle" class="num">4</text>
+    <text x="758" y="582" class="stepTitle">Serve paid response</text>
+    <text x="758" y="612" class="stepBody">Provider returns output. Response and payment receipts extend the evidence chain.</text>
+  </g>
+
+  <g class="step">
+    <rect x="1110" y="542" width="320" height="128" rx="28" fill="#f2f3ff" stroke="#c9c9ef" class="stepCard" />
+    <circle cx="1146" cy="578" r="22" fill="#506177" />
+    <text x="1146" y="586" text-anchor="middle" class="num">5</text>
+    <text x="1178" y="582" class="stepTitle">Bundle and anchor</text>
+    <text x="1178" y="612" class="stepBody">Evidence service stores the bundle, computes the root, and anchors it on-chain.</text>
+  </g>
+
+  <path d="M390 310 C430 310, 470 310, 510 310" class="edge" />
+  <path d="M810 310 C930 310, 1010 310, 1110 310" class="edge" />
+  <path d="M660 374 C660 430, 520 476, 440 542" class="edge" />
+  <path d="M590 606 C626 606, 654 606, 690 606" class="edge" />
+  <path d="M1010 606 C1046 606, 1074 606, 1110 606" class="edge" />
+  <path d="M1270 542 C1270 476, 1270 432, 1270 374" class="edge" />
+
+  <text x="430" y="286" class="edgeLabel">proposal + acceptance</text>
+  <text x="920" y="286" class="edgeLabel">normal settlement</text>
+  <text x="512" y="460" class="edgeLabel">agreement context</text>
+  <text x="842" y="582" class="edgeLabel">signed receipt chain</text>
+  <text x="1288" y="468" class="edgeLabel">proof preserved</text>
+
+  <rect x="92" y="764" width="1416" height="90" rx="28" fill="#fff9ef" stroke="#eadcc8" stroke-width="2" />
+  <rect x="130" y="792" width="260" height="34" rx="17" fill="#fff1ea" />
+  <rect x="410" y="792" width="270" height="34" rx="17" fill="#eef4ff" />
+  <rect x="700" y="792" width="320" height="34" rx="17" fill="#eef8f5" />
+  <rect x="1040" y="792" width="420" height="34" rx="17" fill="#ecf8ef" />
+  <text x="260" y="814" text-anchor="middle" class="pill">Funds are locked before work starts</text>
+  <text x="545" y="814" text-anchor="middle" class="pill">Receipts capture the interaction</text>
+  <text x="860" y="814" text-anchor="middle" class="pill">Evidence is independently auditable</text>
+  <text x="1250" y="814" text-anchor="middle" class="pill">The happy path ends with completion, not arbitration</text>
+</svg>

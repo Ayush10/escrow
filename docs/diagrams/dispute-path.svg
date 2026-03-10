@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 920" role="img" aria-labelledby="title desc">
+  <title id="title">Verdict Protocol dispute path</title>
+  <desc id="desc">Dispute path showing dispute filing, anchored evidence verification, signed verdict generation, and on-chain ruling submission.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8f2eb" />
+      <stop offset="55%" stop-color="#fff8f0" />
+      <stop offset="100%" stop-color="#f3f8f4" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#b5a48d" flood-opacity="0.18" />
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#506177" />
+    </marker>
+    <style>
+      .title { font: 800 42px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #182233; }
+      .subtitle { font: 500 20px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #5f6878; }
+      .phase { font: 700 16px 'IBM Plex Sans', 'Segoe UI', sans-serif; letter-spacing: 2px; fill: #7d8494; }
+      .phaseBand { fill: #fffdf8; stroke: #e5d6c3; stroke-width: 2; filter: url(#shadow); }
+      .stepCard { stroke-width: 1.8; filter: url(#shadow); }
+      .stepTitle { font: 700 23px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #1f2736; }
+      .stepBody { font: 500 17px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #5f6978; }
+      .num { font: 800 22px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #ffffff; }
+      .edge { fill: none; stroke: #506177; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow); }
+      .edgeLabel { font: 600 16px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #687386; }
+      .artifact { font: 700 16px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #324154; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="920" fill="url(#bg)" />
+  <circle cx="1460" cy="120" r="150" fill="#fff1df" opacity="0.72" />
+  <circle cx="120" cy="760" r="170" fill="#eef7f2" opacity="0.8" />
+
+  <rect x="58" y="54" width="1484" height="86" rx="28" fill="#fff8ef" stroke="#eadcc8" stroke-width="2" />
+  <text x="84" y="108" class="title">Dispute Path</text>
+  <text x="390" y="108" class="subtitle">When service quality fails, the protocol converts receipts and anchors into a signed ruling.</text>
+
+  <rect x="60" y="174" width="470" height="114" rx="28" class="phaseBand" />
+  <rect x="566" y="174" width="470" height="114" rx="28" class="phaseBand" />
+  <rect x="1072" y="174" width="468" height="114" rx="28" class="phaseBand" />
+  <text x="90" y="212" class="phase">PHASE 1</text>
+  <text x="90" y="252" class="stepTitle">Dispute opens</text>
+  <text x="596" y="212" class="phase">PHASE 2</text>
+  <text x="596" y="252" class="stepTitle">Evidence is checked</text>
+  <text x="1102" y="212" class="phase">PHASE 3</text>
+  <text x="1102" y="252" class="stepTitle">Ruling is enforced</text>
+
+  <g>
+    <rect x="80" y="360" width="220" height="150" rx="30" fill="#fff1ea" stroke="#f4b89f" class="stepCard" />
+    <circle cx="118" cy="402" r="22" fill="#ff8c61" />
+    <text x="118" y="410" text-anchor="middle" class="num">1</text>
+    <text x="152" y="402" class="stepTitle">File dispute</text>
+    <text x="152" y="432" class="stepBody">Consumer files against a specific Court contract ID.</text>
+  </g>
+
+  <g>
+    <rect x="330" y="360" width="220" height="150" rx="30" fill="#fff4df" stroke="#f0d1a2" class="stepCard" />
+    <circle cx="368" cy="402" r="22" fill="#f4a300" />
+    <text x="368" y="410" text-anchor="middle" class="num">2</text>
+    <text x="402" y="402" class="stepTitle">Freeze settlement</text>
+    <text x="402" y="432" class="stepBody">Contract state moves to disputed and points to the assigned judge.</text>
+  </g>
+
+  <g>
+    <rect x="610" y="360" width="220" height="150" rx="30" fill="#eef8f5" stroke="#b9ddd6" class="stepCard" />
+    <circle cx="648" cy="402" r="22" fill="#1f9d8b" />
+    <text x="648" y="410" text-anchor="middle" class="num">3</text>
+    <text x="682" y="402" class="stepTitle">Load bundle</text>
+    <text x="682" y="432" class="stepBody">Judge service pulls the anchored clause, receipts, root, and CID.</text>
+  </g>
+
+  <g>
+    <rect x="860" y="360" width="220" height="150" rx="30" fill="#eef4ff" stroke="#b9cdfd" class="stepCard" />
+    <circle cx="898" cy="402" r="22" fill="#2f6df6" />
+    <text x="898" y="410" text-anchor="middle" class="num">4</text>
+    <text x="932" y="402" class="stepTitle">Verify facts</text>
+    <text x="932" y="432" class="stepBody">Receipt chain integrity and SLA rules determine the logical outcome.</text>
+  </g>
+
+  <g>
+    <rect x="1140" y="360" width="220" height="150" rx="30" fill="#f3f1ff" stroke="#d7d1eb" class="stepCard" />
+    <circle cx="1178" cy="402" r="22" fill="#506177" />
+    <text x="1178" y="410" text-anchor="middle" class="num">5</text>
+    <text x="1212" y="402" class="stepTitle">Sign verdict</text>
+    <text x="1212" y="432" class="stepBody">A machine-readable package gets hashed, signed, and stored.</text>
+  </g>
+
+  <g>
+    <rect x="1390" y="360" width="150" height="150" rx="30" fill="#ecf8ef" stroke="#b9dfc5" class="stepCard" />
+    <circle cx="1428" cy="402" r="22" fill="#2e8b57" />
+    <text x="1428" y="410" text-anchor="middle" class="num">6</text>
+    <text x="1462" y="402" class="stepTitle">Submit</text>
+    <text x="1462" y="432" class="stepBody">Ruling goes on-chain and reputation updates.</text>
+  </g>
+
+  <path d="M300 435 C312 435, 320 435, 330 435" class="edge" />
+  <path d="M550 435 C572 435, 586 435, 610 435" class="edge" />
+  <path d="M830 435 C844 435, 850 435, 860 435" class="edge" />
+  <path d="M1080 435 C1102 435, 1118 435, 1140 435" class="edge" />
+  <path d="M1360 435 C1372 435, 1378 435, 1390 435" class="edge" />
+
+  <text x="390" y="340" class="edgeLabel">dispute(tx)</text>
+  <text x="676" y="340" class="edgeLabel">bundle + anchor lookup</text>
+  <text x="944" y="340" class="edgeLabel">integrity + SLA checks</text>
+  <text x="1236" y="340" class="edgeLabel">verdict hash + signature</text>
+
+  <rect x="92" y="602" width="1416" height="190" rx="32" class="phaseBand" />
+  <text x="126" y="642" class="phase">ARTIFACTS CREATED ON THE WAY</text>
+
+  <rect x="126" y="674" width="250" height="70" rx="22" fill="#fff1ea" />
+  <rect x="400" y="674" width="270" height="70" rx="22" fill="#eef8f5" />
+  <rect x="694" y="674" width="250" height="70" rx="22" fill="#eef4ff" />
+  <rect x="968" y="674" width="250" height="70" rx="22" fill="#fff4df" />
+  <rect x="1242" y="674" width="232" height="70" rx="22" fill="#ecf8ef" />
+
+  <text x="251" y="706" text-anchor="middle" class="artifact">dispute tx hash</text>
+  <text x="535" y="706" text-anchor="middle" class="artifact">bundle CID + anchor root</text>
+  <text x="819" y="706" text-anchor="middle" class="artifact">verdict hash</text>
+  <text x="1093" y="706" text-anchor="middle" class="artifact">judge signature</text>
+  <text x="1358" y="706" text-anchor="middle" class="artifact">ruling submit tx</text>
+
+  <text x="251" y="728" text-anchor="middle" class="stepBody">Points to the contested contract.</text>
+  <text x="535" y="728" text-anchor="middle" class="stepBody">Proves evidence has not changed.</text>
+  <text x="819" y="728" text-anchor="middle" class="stepBody">Stable package fingerprint.</text>
+  <text x="1093" y="728" text-anchor="middle" class="stepBody">Machine-verifiable authorship.</text>
+  <text x="1358" y="728" text-anchor="middle" class="stepBody">On-chain enforcement record.</text>
+</svg>
