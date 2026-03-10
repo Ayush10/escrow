@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install workspace dependencies
+        run: uv sync
+
+      - name: Ruff
+        run: >
+          uv run ruff check
+          packages/protocol/src
+          packages/protocol/tests
+          apps/judge_service/src
+          apps/judge_service/tests
+          apps/reputation_service/src
+          apps/reputation_service/tests
+
+      - name: Pytest
+        run: >
+          uv run pytest -q
+          packages/protocol/tests
+          apps/evidence_service/tests
+          apps/judge_service/tests
+          apps/reputation_service/tests
+
+      - name: Dry-run end-to-end flow
+        env:
+          PYTHONPATH: ./packages/protocol/src:./apps/evidence_service/src:./apps/provider_api/src:./apps/judge_service/src:./apps/reputation_service/src:./apps/consumer_agent/src:./apps/demo_runner/src
+          ESCROW_DRY_RUN: "1"
+          X402_ALLOW_MOCK: "1"
+          GOAT_CHAIN_ID: "48816"
+          GOAT_RPC_URL: https://rpc.testnet3.goat.network
+          ESCROW_CONTRACT_ADDRESS: 0xFBf9b5293A1737AC53880d3160a64B49bA54801D
+          PROVIDER_PRIVATE_KEY: 0x1111111111111111111111111111111111111111111111111111111111111111
+          CONSUMER_PRIVATE_KEY: 0x2222222222222222222222222222222222222222222222222222222222222222
+          JUDGE_PRIVATE_KEY: 0x3333333333333333333333333333333333333333333333333333333333333333
+          JUDGE_SIGNER_BACKEND: env
+          SQLITE_PATH: ./data/verdict_ci.db
+          EVIDENCE_SERVICE_URL: http://127.0.0.1:4001
+          PROVIDER_API_URL: http://127.0.0.1:4000
+          X402_SELLER_WALLET: 0x0000000000000000000000000000000000000000
+        run: uv run python -m demo_runner.demo

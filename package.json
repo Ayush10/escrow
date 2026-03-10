@@ -3,14 +3,18 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "demo": "uv run --package demo-runner demo",
-    "demo:ui": "python3 -m http.server 4173 --directory judge-frontend",
-    "dashboard:payment": "PYTHONPATH=apps/demo_runner/src uv run python -m demo_runner.push_dashboard_payment",
-    "dev:evidence": "uv run --package evidence-service evidence-service",
-    "dev:judge": "uv run --package judge-service judge-service",
-    "dev:reputation": "uv run --package reputation-service reputation-service",
-    "dev:provider": "uv run --package provider-api provider-api",
-    "dev:frontend": "python3 -m http.server 4173 --directory judge-frontend",
+    "demo": "bash ./scripts/demo.sh",
+    "demo:console": "bash ./scripts/demo.sh --console",
+    "demo:happy": "bash ./scripts/demo.sh --happy",
+    "demo:dispute": "bash ./scripts/demo.sh --dispute",
+    "demo:ui": "python3 -m http.server 4173 --directory console",
+    "dashboard:payment": "bash ./scripts/run_module.sh demo_runner.push_dashboard_payment",
+    "dev:evidence": "bash ./scripts/run_module.sh evidence_service.server",
+    "dev:judge": "bash ./scripts/run_module.sh judge_service.server",
+    "dev:reputation": "bash ./scripts/run_module.sh reputation_service.api",
+    "dev:provider": "bash ./scripts/run_module.sh provider_api.server",
+    "dev:runner": "bash ./scripts/run_module.sh demo_runner.server",
+    "dev:frontend": "python3 -m http.server 4173 --directory console",
     "test": "uv run pytest"
   }
 }

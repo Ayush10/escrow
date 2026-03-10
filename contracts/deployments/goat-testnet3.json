@@ -1,0 +1,20 @@
+{
+  "network": "goat-testnet3",
+  "chainId": 48816,
+  "rpcUrl": "https://rpc.testnet3.goat.network",
+  "contractName": "AgentCourt",
+  "contractAddress": "0xFBf9b5293A1737AC53880d3160a64B49bA54801D",
+  "abiPath": "contracts/abi/AgentCourt.json",
+  "paymentToken": {
+    "symbol": "USDC",
+    "address": "0x29d1ee93e9ecf6e50f309f498e40a6b42d352fa1"
+  },
+  "paymentNetwork": {
+    "x402Network": "eip155:84532",
+    "facilitatorUrl": "https://www.x402.org/facilitator"
+  },
+  "notes": [
+    "This is the canonical V1 testnet manifest for shared integration work.",
+    "Judge, provider, and consumer private keys remain environment-managed and are intentionally not stored here."
+  ]
+}

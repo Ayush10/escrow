@@ -63,8 +63,9 @@ class DashboardPaymentRequest(BaseModel):
     token: str = "USDC"
     amount: str = "0.001"
     recipient: str | None = None
-    agentName: str = "Ayush + Karan and Verdict Protocol"
-    agentDescription: str = "Signature identity for Verdict Protocol agent payments"
+    agentName: str = "Verdict Protocol Operator"
+    agentDescription: str = "Agent identity for Verdict Protocol payment and arbitration flows"
+    registerAgent: bool = True
     dryRun: bool = False
     requestFaucet: bool = False
 
@@ -114,6 +115,9 @@ def config() -> dict[str, Any]:
             "network": os.environ.get("X402_NETWORK", "eip155:84532"),
             "asset": os.environ.get("X402_PAYMENT_ASSET", "USDC"),
         },
+        "mockMode": os.environ.get("X402_ALLOW_MOCK", "") == "1"
+            or os.environ.get("ESCROW_DRY_RUN", "") == "1",
+        "dryRun": os.environ.get("ESCROW_DRY_RUN", "") == "1",
     }
 
 
@@ -191,6 +195,7 @@ async def dashboard_payment(payload: DashboardPaymentRequest) -> dict[str, Any]:
     cmd_env["DASHBOARD_PAYMENT_AMOUNT"] = payload.amount
     cmd_env["DASHBOARD_AGENT_NAME"] = payload.agentName
     cmd_env["DASHBOARD_AGENT_DESCRIPTION"] = payload.agentDescription
+    cmd_env["DASHBOARD_REGISTER_AGENT"] = "1" if payload.registerAgent else "0"
     cmd_env["DASHBOARD_PAYMENT_DRY_RUN"] = "1" if payload.dryRun else "0"
     cmd_env["DASHBOARD_REQUEST_FAUCET"] = "1" if payload.requestFaucet else "0"
     if payload.recipient:

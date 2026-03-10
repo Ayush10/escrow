@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 160" role="img" aria-label="Verdict Protocol logo">
+  <defs>
+    <linearGradient id="vpBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0A7CFF"/>
+      <stop offset="100%" stop-color="#00B894"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="720" height="160" rx="24" fill="#070C1D"/>
+  <g transform="translate(26 26)">
+    <rect x="0" y="0" width="108" height="108" rx="22" fill="url(#vpBg)"/>
+    <g transform="translate(54 26)" fill="none" stroke="#061126" stroke-width="7" stroke-linecap="round">
+      <line x1="0" y1="0" x2="0" y2="48"/>
+      <line x1="-20" y1="16" x2="20" y2="16"/>
+      <path d="M-17 16 C-15 24 -11 29 -6 32 C-1 34 1 34 6 32 C11 29 15 24 17 16"/>
+      <path d="M-17 16 C-11 13 -6 11 0 10 C6 11 11 13 17 16"/>
+      <path d="M-6 50 C-3 56 3 56 6 50"/>
+    </g>
+    <text x="146" y="50" font-family="Manrope, Arial, sans-serif" font-size="36" font-weight="800" fill="#EAF2FF">Verdict Protocol</text>
+    <text x="146" y="84" font-family="JetBrains Mono, monospace" font-size="18" fill="#8EA0C7">AI x402 Arbitration Layer</text>
+    <text x="146" y="108" font-family="JetBrains Mono, monospace" font-size="16" fill="#16DFBF">Ayush + Karan</text>
+  </g>
+</svg>

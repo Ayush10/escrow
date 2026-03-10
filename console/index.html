@@ -1,0 +1,3371 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <title>Verdict Protocol Console</title>
+    <link
+      href="/assets/agent_court_favicon_light.png"
+      rel="icon"
+      type="image/png"
+    />
+    <link
+      href="/assets/agent_court_favicon_light.png"
+      rel="shortcut icon"
+      type="image/png"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f6f8f8;
+        --surface: rgba(255, 255, 255, 0.7);
+        --surface-soft: rgba(255, 255, 255, 0.5);
+        --line: rgba(19, 200, 236, 0.2);
+        --text: #0f172a;
+        --text-muted: #64748b;
+        --brand: #13c8ec;
+        --brand-2: #0ea5e9;
+        --warn: #f59e0b;
+        --danger: #ef4444;
+        --ok: #10b981;
+        --shadow: 0 4px 24px -4px rgba(19, 200, 236, 0.1);
+        --shadow-lg: 0 12px 48px -12px rgba(19, 200, 236, 0.15);
+        --radius: 16px;
+        --mono:
+          "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--text);
+        font-family: "Inter", system-ui, sans-serif;
+        background-color: var(--bg);
+        background-image:
+          radial-gradient(
+            at 0% 0%,
+            rgba(19, 200, 236, 0.1) 0px,
+            transparent 50%
+          ),
+          radial-gradient(
+            at 100% 0%,
+            rgba(20, 184, 166, 0.1) 0px,
+            transparent 50%
+          );
+        background-attachment: fixed;
+        min-height: 100vh;
+        padding-bottom: 60px;
+      }
+
+      .shell {
+        max-width: 1300px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      /* Glassmorphism primitives */
+      .glass {
+        background: var(--surface);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        box-shadow: var(--shadow);
+      }
+
+      .hero {
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.9) 0%,
+          rgba(240, 250, 255, 0.7) 100%
+        );
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(19, 200, 236, 0.15);
+        border-radius: 24px;
+        box-shadow: var(--shadow-lg);
+        padding: 32px;
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+      }
+
+      .hero h1 {
+        margin: 0;
+        font-size: 32px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: #0f172a;
+      }
+      .hero p {
+        margin: 12px 0 0 0;
+        color: var(--text-muted);
+        font-size: 15px;
+        line-height: 1.6;
+        max-width: 600px;
+      }
+      .hero-left {
+        min-width: 320px;
+        flex: 1;
+      }
+      .hero-right {
+        min-width: 300px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: flex-start;
+      }
+
+      .hero-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        background: white;
+        border: 1px solid rgba(19, 200, 236, 0.2);
+        border-radius: 999px;
+        padding: 6px 14px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      }
+      .hero-brand img {
+        width: 24px;
+        height: 24px;
+        display: block;
+      }
+      .hero-brand span {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        color: #334155;
+        text-transform: uppercase;
+      }
+
+      .hero-logo {
+        margin-top: 16px;
+        margin-bottom: 20px;
+        height: 60px;
+        width: auto;
+        display: block;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        background: rgba(16, 185, 129, 0.05);
+        color: #047857;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+      }
+      .dot.ok {
+        background: var(--ok);
+        box-shadow: 0 0 8px var(--ok);
+        animation: pulse 2s infinite;
+      }
+      .dot.warn {
+        background: var(--warn);
+      }
+      .dot.bad {
+        background: var(--danger);
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .mono {
+        font-family: var(--mono);
+      }
+
+      .grid {
+        display: grid;
+        gap: 20px;
+        margin-top: 20px;
+      }
+      .grid.top {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .grid.main {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .panel {
+        background: var(--surface);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .panel h2 {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #475569;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        padding-bottom: 12px;
+        margin-bottom: 12px;
+      }
+
+      .sub {
+        color: var(--text-muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .grow {
+        flex: 1;
+      }
+
+      input,
+      button,
+      select {
+        font: inherit;
+        outline: none;
+        transition: all 0.2s;
+      }
+
+      input {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 12px;
+        padding: 10px 14px;
+        color: var(--text);
+        font-size: 14px;
+      }
+      input:focus {
+        border-color: var(--brand);
+        box-shadow: 0 0 0 3px rgba(19, 200, 236, 0.15);
+      }
+
+      button {
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        background: rgba(255, 255, 255, 0.9);
+        color: #334155;
+        border-radius: 12px;
+        padding: 10px 16px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      button:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+        transform: translateY(-1px);
+      }
+      button:active {
+        transform: translateY(0);
+      }
+
+      button.brand {
+        background: linear-gradient(135deg, var(--brand) 0%, #0284c7 100%);
+        color: #ffffff;
+        border: none;
+        box-shadow: 0 4px 12px rgba(19, 200, 236, 0.3);
+      }
+      button.brand:hover {
+        box-shadow: 0 6px 16px rgba(19, 200, 236, 0.4);
+        transform: translateY(-1px);
+      }
+
+      button.brand.secondary {
+        background: linear-gradient(135deg, var(--ok) 0%, #059669 100%);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      }
+      button.brand.secondary:hover {
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+      }
+
+      .btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .chips {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
+      .chip {
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        padding: 4px 12px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .chip.ok {
+        color: #047857;
+        border-color: rgba(16, 185, 129, 0.2);
+        background: rgba(16, 185, 129, 0.1);
+      }
+      .chip.warn {
+        color: #b45309;
+        border-color: rgba(245, 158, 11, 0.2);
+        background: rgba(245, 158, 11, 0.1);
+      }
+      .chip.bad {
+        color: #be123c;
+        border-color: rgba(239, 68, 68, 0.2);
+        background: rgba(239, 68, 68, 0.1);
+      }
+
+      .health-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .health-item {
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.5);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .health-item .name {
+        font-size: 12px;
+        font-weight: 600;
+        color: #475569;
+      }
+
+      .timeline {
+        margin-top: 16px;
+        display: grid;
+        gap: 12px;
+      }
+      .step {
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-left: 4px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.5);
+        transition: all 0.3s ease;
+      }
+      .step.running {
+        border-left-color: var(--brand);
+        background: rgba(19, 200, 236, 0.05);
+      }
+      .step.done {
+        border-left-color: var(--ok);
+      }
+      .step.error {
+        border-left-color: var(--danger);
+        background: rgba(239, 68, 68, 0.05);
+      }
+      .step .meta {
+        color: #94a3b8;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .step .title {
+        font-weight: 700;
+        margin-top: 4px;
+        color: #1e293b;
+        font-size: 14px;
+      }
+
+      .log {
+        margin-top: 12px;
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        background: #0f172a;
+        border-radius: 14px;
+        height: 320px;
+        overflow: auto;
+        font-family: var(--mono);
+        font-size: 12px;
+        padding: 16px;
+        color: #10b981;
+        box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.2);
+      }
+      .log-line {
+        margin-bottom: 8px;
+        line-height: 1.4;
+      }
+      .log-line span.time {
+        color: #64748b;
+        margin-right: 8px;
+      }
+
+      .table-wrap {
+        margin-top: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: 14px;
+        overflow: auto;
+        max-height: 400px;
+        background: rgba(255, 255, 255, 0.5);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 12px 16px;
+      }
+      th {
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        background: rgba(255, 255, 255, 0.4);
+      }
+      td {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.02);
+        color: #334155;
+      }
+      tbody tr:hover {
+        background: rgba(255, 255, 255, 0.8);
+      }
+
+      .inline-link {
+        color: var(--brand);
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .inline-link:hover {
+        text-decoration: underline;
+      }
+
+      .stack {
+        display: grid;
+        gap: 20px;
+      }
+
+      .status-banner {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(19, 200, 236, 0.3);
+        background: rgba(19, 200, 236, 0.05);
+        font-size: 13px;
+        color: #0284c7;
+        font-weight: 500;
+      }
+      .status-banner.warn {
+        background: rgba(245, 158, 11, 0.05);
+        border-color: rgba(245, 158, 11, 0.3);
+        color: #b45309;
+      }
+
+      .footer {
+        margin-top: 32px;
+        color: #94a3b8;
+        font-size: 13px;
+        text-align: center;
+      }
+
+      /* Court Dashboard specific styles adapted for light theme */
+      .disputes-list {
+        margin-top: 12px;
+        /* moved to accordion CSS */
+      }
+      .dispute-card {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.9) 0%,
+          rgba(248, 250, 252, 0.9) 100%
+        );
+        color: #1e293b;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+      .dispute-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 16px;
+      }
+      .dispute-id {
+        font-family: var(--mono);
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .dispute-party-line {
+        margin-top: 8px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .dispute-party {
+        font-family: var(--mono);
+        color: #0284c7;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .dispute-vs {
+        color: #94a3b8;
+        font-weight: 800;
+        font-size: 11px;
+      }
+      .dispute-right {
+        text-align: right;
+      }
+      .dispute-amount {
+        color: #f59e0b;
+        font-family: var(--mono);
+        font-weight: 800;
+        font-size: 16px;
+      }
+
+      .dispute-outcome {
+        padding: 12px 16px;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        background: rgba(19, 200, 236, 0.05);
+      }
+      .dispute-outcome .winner {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+      .dispute-outcome .winner.plaintiff {
+        color: var(--ok);
+      }
+      .dispute-outcome .winner.defendant {
+        color: var(--danger);
+      }
+      .dispute-outcome .meta {
+        margin-top: 4px;
+        color: #64748b;
+        font-size: 13px;
+      }
+
+      /* dispute-accordion */
+      .dispute-details {
+        display: none; /* hidden by default */
+        padding: 16px;
+        gap: 16px;
+        animation: slideDown 0.3s ease-in-out;
+      }
+      .dispute-details.expanded {
+        display: grid;
+      }
+      .dispute-card {
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .dispute-card:hover {
+        border-color: rgba(19, 200, 236, 0.4);
+      }
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .dispute-details-old {
+        padding: 16px;
+        /* moved to accordion CSS */
+      }
+      .dispute-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .dispute-stat {
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.7);
+      }
+      .dispute-stat .label {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .dispute-stat .value {
+        margin-top: 6px;
+        font-family: var(--mono);
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 600;
+        word-break: break-all;
+      }
+
+      .opinion-box {
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.7);
+        padding: 16px;
+      }
+      .opinion-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        padding-bottom: 8px;
+      }
+      .opinion-title {
+        color: #ec4899;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+      .opinion-court {
+        color: #64748b;
+        text-transform: uppercase;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .opinion-pre {
+        margin: 0;
+        max-height: 300px;
+        overflow: auto;
+        white-space: pre-wrap;
+        color: #334155;
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .court-dashboard {
+        margin-top: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: 24px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.8) 0%,
+          rgba(248, 250, 252, 0.8) 100%
+        );
+        backdrop-filter: blur(12px);
+        box-shadow: var(--shadow-lg);
+        padding: 32px;
+      }
+      .court-stats {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 16px;
+      }
+      .court-stat-card {
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 16px;
+        padding: 24px 16px;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+      }
+      .court-stat-value {
+        font-family: var(--mono);
+        font-size: 32px;
+        line-height: 1;
+        font-weight: 800;
+        color: #0f172a;
+      }
+      .court-stat-value.ok {
+        color: var(--ok);
+      }
+      .court-stat-value.warn {
+        color: var(--warn);
+      }
+      .court-stat-value.brand {
+        color: var(--brand);
+      }
+      .court-stat-label {
+        margin-top: 12px;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .court-block {
+        margin-top: 32px;
+      }
+      .court-heading {
+        margin: 0;
+        color: #1e293b;
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        border-bottom: 2px solid rgba(19, 200, 236, 0.2);
+        padding-bottom: 12px;
+        display: inline-block;
+      }
+
+      .court-tier-grid {
+        margin-top: 20px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      .tier-card {
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 16px;
+        padding: 24px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+        transition: transform 0.2s;
+      }
+      .tier-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow);
+      }
+      .tier-card::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 6px;
+      }
+      .tier-card.district::before {
+        background: var(--ok);
+      }
+      .tier-card.appeals::before {
+        background: var(--warn);
+      }
+      .tier-card.supreme::before {
+        background: #8b5cf6;
+      }
+      .tier-name {
+        color: #0f172a;
+        font-weight: 800;
+        font-size: 20px;
+      }
+      .tier-model {
+        margin-top: 6px;
+        color: #64748b;
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+      .tier-fee {
+        margin-top: 16px;
+        font-family: var(--mono);
+        font-size: 28px;
+        font-weight: 800;
+      }
+      .tier-fee.district {
+        color: var(--ok);
+      }
+      .tier-fee.appeals {
+        color: var(--warn);
+      }
+      .tier-fee.supreme {
+        color: #8b5cf6;
+      }
+      .tier-rule {
+        margin-top: 12px;
+        color: #94a3b8;
+        text-transform: uppercase;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .section-head-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .section-pill {
+        border: 1px solid rgba(19, 200, 236, 0.3);
+        border-radius: 999px;
+        color: #0284c7;
+        font-weight: 700;
+        font-family: var(--mono);
+        background: rgba(19, 200, 236, 0.1);
+        padding: 6px 14px;
+        font-size: 13px;
+      }
+
+      .service-list,
+      .agent-list {
+        margin-top: 0;
+        /* moved to accordion CSS */
+      }
+      .service-card,
+      .agent-card {
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+      }
+      .service-card .top,
+      .agent-card .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .service-id {
+        font-family: var(--mono);
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .service-provider {
+        margin-top: 8px;
+        font-family: var(--mono);
+        color: #0284c7;
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .service-meta {
+        margin-top: 12px;
+        color: #475569;
+        font-size: 14px;
+        display: flex;
+        gap: 16px;
+      }
+      .service-price {
+        font-family: var(--mono);
+        color: var(--warn);
+        font-size: 24px;
+        font-weight: 700;
+      }
+
+      .agent-address {
+        font-family: var(--mono);
+        color: #0f172a;
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .agent-explorer {
+        display: inline-block;
+        color: var(--brand);
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .agent-explorer:hover {
+        text-decoration: underline;
+      }
+      .agent-tags {
+        display: inline-flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .agent-tag {
+        border-radius: 8px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #475569;
+        background: #f8fafc;
+      }
+      .agent-tag.judge {
+        color: #7c3aed;
+        border-color: rgba(124, 58, 237, 0.2);
+        background: rgba(124, 58, 237, 0.05);
+      }
+      .agent-tag.agent {
+        color: #0284c7;
+        border-color: rgba(2, 132, 199, 0.2);
+        background: rgba(2, 132, 199, 0.05);
+      }
+      .agent-tag.district {
+        color: var(--ok);
+        border-color: rgba(16, 185, 129, 0.2);
+        background: rgba(16, 185, 129, 0.05);
+      }
+      .agent-tag.appeals {
+        color: var(--warn);
+        border-color: rgba(245, 158, 11, 0.2);
+        background: rgba(245, 158, 11, 0.05);
+      }
+      .agent-tag.supreme {
+        color: #8b5cf6;
+        border-color: rgba(139, 92, 246, 0.2);
+        background: rgba(139, 92, 246, 0.05);
+      }
+
+      .agent-grid {
+        margin-top: 20px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        padding-top: 16px;
+      }
+      .agent-stat {
+        text-align: center;
+      }
+      .agent-stat .value {
+        font-family: var(--mono);
+        font-size: 28px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+      .agent-stat .value.ok {
+        color: var(--ok);
+      }
+      .agent-stat .value.bad {
+        color: var(--danger);
+      }
+      .agent-stat .value.warn {
+        color: var(--warn);
+      }
+      .agent-stat .label {
+        margin-top: 6px;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      @media (max-width: 1080px) {
+        .grid.top,
+        .court-stats,
+        .court-tier-grid {
+          grid-template-columns: 1fr;
+        }
+        .grid.main,
+        .agent-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Dashboard Layout */
+      .dashboard-shell {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        min-height: 100vh;
+      }
+      .sidebar {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+        border-right: 1px solid rgba(19, 200, 236, 0.2);
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.8) 0%,
+          rgba(240, 250, 255, 0.6) 100%
+        );
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+      }
+      .sidebar-header {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .sidebar-logo {
+        height: 48px;
+        width: auto;
+        display: block;
+      }
+      .sidebar-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex: 1;
+      }
+      .tab-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        color: #475569;
+        font-weight: 600;
+        text-align: left;
+        padding: 12px 16px;
+        border-radius: 12px;
+        transition: all 0.2s;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .tab-btn:hover {
+        background: rgba(19, 200, 236, 0.05);
+        color: #0f172a;
+      }
+      .tab-btn.active {
+        background: white;
+        color: var(--brand-2);
+        box-shadow: 0 4px 12px rgba(19, 200, 236, 0.1);
+        border: 1px solid rgba(19, 200, 236, 0.2);
+      }
+      .main-content {
+        padding: 32px;
+        height: 100vh;
+        overflow-y: auto;
+      }
+      .tab-pane {
+        display: none;
+        animation: fadeIn 0.3s ease-in-out;
+      }
+      .tab-pane.active {
+        display: block;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .footer {
+        margin-top: auto;
+        padding-top: 24px;
+        text-align: left;
+      }
+
+      body.dark {
+        --bg: #0f172a;
+        --surface: rgba(30, 41, 59, 0.7);
+        --surface-soft: rgba(30, 41, 59, 0.5);
+        --line: rgba(19, 200, 236, 0.2);
+        --text: #f8fafc;
+        --text-muted: #94a3b8;
+        --brand: #13c8ec;
+        --brand-2: #38bdf8;
+        --warn: #fbbf24;
+        --danger: #ef4444;
+        --ok: #10b981;
+        --shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.3);
+        --shadow-lg: 0 12px 48px -12px rgba(0, 0, 0, 0.4);
+      }
+      body.dark .glass {
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+      body.dark .sidebar {
+        background: linear-gradient(
+          180deg,
+          rgba(15, 23, 42, 0.8) 0%,
+          rgba(30, 41, 59, 0.6) 100%
+        );
+        border-right-color: rgba(255, 255, 255, 0.1);
+      }
+      body.dark .tab-btn {
+        color: #e2e8f0;
+      }
+      body.dark .tab-btn:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      body.dark .tab-btn.active {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--brand-2);
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+      body.dark input,
+      body.dark button:not(.tab-btn):not(.brand) {
+        background: rgba(30, 41, 59, 0.9);
+        color: var(--text);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+      body.dark button:not(.tab-btn):not(.brand):hover {
+        background: rgba(51, 65, 85, 0.9);
+      }
+      body.dark .panel.glass h2,
+      body.dark .court-heading,
+      body.dark .tier-name,
+      body.dark .agent-address {
+        color: #f8fafc;
+      }
+      body.dark .court-stat-card,
+      body.dark .tier-card,
+      body.dark .service-card,
+      body.dark .agent-card,
+      body.dark .dispute-stat,
+      body.dark .opinion-box {
+        background: rgba(30, 41, 59, 0.9);
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+      body.dark .dispute-card {
+        background: linear-gradient(
+          180deg,
+          rgba(30, 41, 59, 0.9) 0%,
+          rgba(15, 23, 42, 0.9) 100%
+        );
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+      body.dark th {
+        background: rgba(0, 0, 0, 0.2);
+        color: #94a3b8;
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+      }
+      body.dark td {
+        color: #e2e8f0;
+        border-bottom-color: rgba(255, 255, 255, 0.05);
+      }
+      body.dark tbody tr:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      body.dark .step {
+        background: rgba(30, 41, 59, 0.5);
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+      body.dark .step .title {
+        color: #f8fafc;
+      }
+      body.dark .hero-brand {
+        background: rgba(30, 41, 59, 0.9);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+      body.dark .hero-brand span {
+        color: #f8fafc;
+      }
+      body.dark .court-dashboard {
+        background: linear-gradient(
+          180deg,
+          rgba(30, 41, 59, 0.8) 0%,
+          rgba(15, 23, 42, 0.8) 100%
+        );
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+      body.dark .dispute-outcome {
+        background: rgba(0, 0, 0, 0.2);
+        border-color: rgba(255, 255, 255, 0.05);
+      }
+      body.dark .hero {
+        background: linear-gradient(
+          135deg,
+          rgba(30, 41, 59, 0.9) 0%,
+          rgba(15, 23, 42, 0.7) 100%
+        );
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+      body.dark .hero h1 {
+        color: #f8fafc;
+      }
+
+      .sidebar-header {
+        align-items: center;
+        text-align: center;
+        padding-bottom: 20px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      }
+      body.dark .sidebar-header {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+      }
+      .sidebar-logo {
+        height: auto;
+        width: 100%;
+        max-width: 180px;
+        margin-bottom: 16px;
+        object-fit: contain;
+      }
+
+      /* manual-execution-flow */
+      #manualAgentUrl {
+        font-size: 13px;
+      }
+
+      /* recentDisputes-expansion */
+      #recentDisputes {
+        max-height: 500px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding-right: 8px; /* For scrollbar */
+      }
+      #verdictsBody {
+        /* allow table expansion implicitly but limit height if necessary */
+      }
+
+      /* Modal Styles */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+      .modal-overlay.open {
+        opacity: 1;
+        pointer-events: all;
+      }
+      .modal-content {
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.95) 0%,
+          rgba(248, 250, 252, 0.95) 100%
+        );
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: 24px;
+        padding: 40px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: var(--shadow-lg);
+        transform: translateY(20px);
+        transition: transform 0.3s;
+        position: relative;
+      }
+      .modal-overlay.open .modal-content {
+        transform: translateY(0);
+      }
+      body.dark .modal-content {
+        background: linear-gradient(
+          180deg,
+          rgba(30, 41, 59, 0.95) 0%,
+          rgba(15, 23, 42, 0.95) 100%
+        );
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+      .modal-close {
+        position: absolute;
+        top: 24px;
+        right: 24px;
+        background: transparent;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-weight: bold;
+        color: #64748b;
+        transition: all 0.2s;
+      }
+      body.dark .modal-close {
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #94a3b8;
+      }
+      .modal-close:hover {
+        background: rgba(19, 200, 236, 0.1);
+        color: var(--brand);
+      }
+      .opinion-parsed {
+        font-family: var(--sans);
+        color: #334155;
+        line-height: 1.6;
+      }
+      body.dark .opinion-parsed {
+        color: #e2e8f0;
+      }
+      .opinion-parsed h2 {
+        font-size: 20px;
+        color: #0f172a;
+        border-bottom: 2px solid rgba(19, 200, 236, 0.2);
+        padding-bottom: 8px;
+        margin-top: 32px;
+        margin-bottom: 16px;
+      }
+      body.dark .opinion-parsed h2 {
+        color: #f8fafc;
+      }
+      .opinion-parsed h1.court-title {
+        font-size: 24px;
+        text-align: center;
+        color: var(--brand-2);
+        letter-spacing: 0.05em;
+        margin-top: 0;
+      }
+      .opinion-parsed h3 {
+        font-size: 16px;
+        color: #64748b;
+        text-transform: uppercase;
+        margin-top: 24px;
+        margin-bottom: 12px;
+      }
+      body.dark .opinion-parsed h3 {
+        color: #94a3b8;
+      }
+      .opinion-parsed p {
+        margin-bottom: 24px;
+      }
+      .opinion-parsed code {
+        background: rgba(0, 0, 0, 0.05);
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-family: var(--mono);
+        font-size: 0.9em;
+      }
+      body.dark .opinion-parsed code {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .opinion-parsed pre.json-block {
+        background: rgba(0, 0, 0, 0.8);
+        color: #a78bfa;
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 14px;
+        margin-top: 32px;
+        line-height: 1.5;
+      }
+      body.dark .opinion-parsed pre.json-block {
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      /* Landing Page Styles */
+      #landingPage {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 24px;
+        animation: fadeIn 0.8s ease-out;
+      }
+      .landing-nav {
+        width: 100%;
+        max-width: 1200px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 60px;
+      }
+      .landing-logo-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .landing-logo-container img {
+        height: 48px;
+        filter: drop-shadow(0 2px 8px rgba(19, 200, 236, 0.3));
+      }
+      .landing-logo-text {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--text);
+        letter-spacing: -0.02em;
+      }
+      body.dark .landing-logo-text {
+        color: #f8fafc;
+      }
+      .landing-hero {
+        text-align: center;
+        max-width: 800px;
+        margin-bottom: 80px;
+      }
+      .landing-hero h1 {
+        font-size: 56px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+        margin-bottom: 24px;
+        background: linear-gradient(135deg, var(--text) 0%, #64748b 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      body.dark .landing-hero h1 {
+        background: linear-gradient(135deg, #f8fafc 0%, #94a3b8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .landing-hero p {
+        font-size: 20px;
+        color: var(--text-muted);
+        line-height: 1.6;
+        margin-bottom: 40px;
+      }
+      .btn-primary.large {
+        font-size: 18px;
+        padding: 16px 36px;
+        border-radius: 30px;
+        box-shadow: 0 8px 32px rgba(19, 200, 236, 0.4);
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+      }
+      .btn-primary.large:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(19, 200, 236, 0.6);
+      }
+      .landing-features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 32px;
+        width: 100%;
+        max-width: 1200px;
+        margin-bottom: 80px;
+      }
+      .feature-card {
+        padding: 32px;
+        border-radius: 24px;
+        text-align: left;
+        transition: transform 0.3s;
+      }
+      .feature-card:hover {
+        transform: translateY(-4px);
+      }
+      .feature-icon {
+        font-size: 32px;
+        margin-bottom: 20px;
+        background: rgba(19, 200, 236, 0.1);
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 16px;
+        color: var(--brand);
+      }
+      .feature-card h3 {
+        font-size: 20px;
+        margin-bottom: 12px;
+        color: var(--text);
+      }
+      .feature-card p {
+        color: var(--text-muted);
+        line-height: 1.6;
+        font-size: 15px;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Landing Page View -->
+    <div id="landingPage">
+      <nav class="landing-nav">
+        <div class="landing-logo-container">
+          <img
+            alt="Verdict Protocol Logo"
+            src="/assets/agent_court_logo_light.png"
+            id="landingLogo"
+          />
+          <span class="landing-logo-text">Verdict Protocol</span>
+        </div>
+        <button class="btn-primary" onclick="showDemo()">Launch Console</button>
+      </nav>
+
+      <div class="landing-hero">
+        <h1>
+          The Trust Layer for<br /><span style="color: var(--brand)"
+            >Paid AI Services</span
+          >
+        </h1>
+        <p>
+          Payment-gated APIs with verifiable execution evidence, escrow-backed
+          dispute resolution, and portable on-chain reputation. Powered by
+          Agent Court arbitration.
+        </p>
+        <button class="btn-primary large" onclick="showDemo()">
+          Show Demo
+        </button>
+      </div>
+
+      <div class="landing-features">
+        <div class="feature-card glass">
+          <div class="feature-icon">⚖️</div>
+          <h3>Tiered Agent Court</h3>
+          <p>
+            Disputes escalate from District (Haiku, $0.05) to Appeals
+            (Sonnet, $0.10) to Supreme (Opus, $0.20) based on loss history.
+          </p>
+        </div>
+        <div class="feature-card glass">
+          <div class="feature-icon">⛓️</div>
+          <h3>Cryptographic Evidence</h3>
+          <p>
+            Verdicts rely on immutable on-chain logs, nullifying spoofed claims
+            and preserving complete receipt integrity.
+          </p>
+        </div>
+        <div class="feature-card glass">
+          <div class="feature-icon">🛡️</div>
+          <h3>Immutable Reputation</h3>
+          <p>
+            Agents build undeniable on-chain track records, maintaining trust
+            logic for distributed and autonomous service networks.
+          </p>
+        </div>
+        <div class="feature-card glass">
+          <div class="feature-icon">🗣️</div>
+          <h3>Multi-Agent Debate</h3>
+          <p>
+            Complex cases involve diverse AI models representing specialized
+            positions to ensure thorough contextual analysis.
+          </p>
+        </div>
+        <div class="feature-card glass">
+          <div class="feature-icon">🔍</div>
+          <h3>Audit Trails</h3>
+          <p>
+            100% transparent reasoning where every logical step of the verdict
+            generation is publicly and cryptographically logged.
+          </p>
+        </div>
+        <div class="feature-card glass">
+          <div class="feature-icon">⚡</div>
+          <h3>Low Latency Resolution</h3>
+          <p>
+            Settle cross-chain digital disputes in seconds with deterministic AI
+            processing rather than waiting months using human courts.
+          </p>
+        </div>
+        <div class="feature-card glass">
+          <div class="feature-icon">🔒</div>
+          <h3>Escrow Integration</h3>
+          <p>
+            Smart contracts automatically and securely disburse disputed funds
+            immediately upon final unappealable verdict.
+          </p>
+        </div>
+        <div class="feature-card glass">
+          <div class="feature-icon">🌐</div>
+          <h3>Decentralized Oracles</h3>
+          <p>
+            Seamless capability to verify real-world off-chain events via
+            integrated decentralized consensus networks and proofs.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard Application View -->
+    <div class="dashboard-shell" id="appDashboard" style="display: none">
+      <aside class="sidebar glass">
+        <div class="sidebar-header">
+          <img
+            alt="Verdict Protocol logo"
+            class="sidebar-logo"
+            src="/assets/agent_court_logo_light.png"
+          />
+          <div class="hero-brand">
+            <img
+              alt="Verdict Protocol"
+              src="/assets/agent_court_favicon_light.png"
+            />
+            <span>Verdict Protocol</span>
+          </div>
+        </div>
+        <nav class="sidebar-nav">
+          <button class="tab-btn active" data-tab="tab-control">
+            Control Panel</button
+          ><button class="tab-btn" data-tab="tab-court">Agent Court</button
+          ><button class="tab-btn" data-tab="tab-network">
+            Network Explorer</button
+          ><button
+            class="tab-btn"
+            id="themeToggle"
+            style="margin-top: auto; justify-content: center; gap: 8px"
+          >
+            ☾ Dark Mode
+          </button>
+        </nav>
+        <div class="footer">
+          Source:
+          <a
+            class="inline-link"
+            href="https://github.com/Ayush10/escrow"
+            target="_blank"
+            >Ayush10/escrow</a
+          >
+        </div>
+      </aside>
+      <main class="main-content">
+        <div class="tab-pane active" id="tab-control">
+          <div id="mockBanner" style="display:none;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;border-radius:12px;padding:10px 20px;margin-bottom:16px;display:none;align-items:center;gap:10px;font-size:13px;font-weight:600;color:#92400e;">
+            <span style="font-size:18px">&#9888;</span> MOCK MODE — Payments and contract interactions are simulated. No real funds are at risk.
+          </div>
+          <div class="hero" style="align-items: center; padding: 20px 32px">
+            <div class="hero-left">
+              <h1 style="font-size: 24px">Verdict Protocol Console</h1>
+              <p style="margin-top: 4px; font-size: 13px">
+                Real-time demo runner for x402 payments, on-chain
+                escrow/disputes on GOAT, evidence anchoring, judge decisions,
+                and reputation updates.
+              </p>
+            </div>
+            <div
+              class="hero-right"
+              style="flex-direction: row; align-items: center; gap: 16px"
+            >
+              <div class="row" style="margin-top: 0">
+                <input
+                  id="runnerUrlInput"
+                  type="hidden"
+                  value="http://127.0.0.1:4004"
+                /><button class="brand" id="connectBtn">Connect Server</button>
+              </div>
+              <div class="pill">
+                <span class="dot warn" id="runnerDot"></span>
+                <span id="runnerLabel">runner: not connected</span>
+              </div>
+              <div
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  align-items: flex-end;
+                  gap: 4px;
+                  font-size: 11px;
+                "
+              >
+                <div class="sub mono" id="contractLine" style="margin: 0">
+                  contract: -
+                </div>
+                <a
+                  class="inline-link"
+                  href="https://explorer.testnet3.goat.network"
+                  id="explorerLink"
+                  style="margin: 0"
+                  target="_blank"
+                  >open GOAT explorer</a
+                >
+              </div>
+            </div>
+          </div>
+          <div class="grid top" style="grid-template-columns: 1fr 1fr 1fr">
+            <div class="panel glass">
+              <h2>Environment</h2>
+              <div id="envPanel">
+                <div class="sub">Connect to runner to view environment details.</div>
+              </div>
+            </div>
+            <div class="panel glass">
+              <h2>Automated Autoplay</h2>
+              <div class="sub">
+                Full-flow execution of predefined scenarios.
+              </div>
+              <div class="sub">
+                One click for Happy, Dispute, or Full autoplay.
+              </div>
+              <div class="row" style="margin-top: 10px">
+                <label class="sub" for="windowSec" style="margin: 0"
+                  >dispute window (sec)</label
+                >
+                <input
+                  id="windowSec"
+                  max="180"
+                  min="5"
+                  style="max-width: 100px"
+                  type="number"
+                  value="30"
+                />
+              </div>
+              <div class="btn-group">
+                <button class="brand" id="runHappyBtn">Run Happy</button>
+                <button class="brand secondary" id="runDisputeBtn">
+                  Run Dispute
+                </button>
+                <button id="runFullBtn">Run Full</button>
+              </div>
+              <div class="btn-group">
+                <button id="refreshRunsBtn">Refresh Runs</button>
+                <button id="refreshVerdictsBtn">Refresh Verdicts</button>
+                <button id="refreshReputationBtn">Refresh Reputation</button>
+              </div>
+              <div class="sub mono" id="activeRunText" style="margin-top: 8px">
+                active run: none
+              </div>
+            </div>
+            <div class="panel glass">
+              <h2>Manual Execution Flow</h2>
+              <div class="sub">Step-by-step transaction execution.</div>
+              <div class="row" style="margin-top: 10px; margin-bottom: 10px">
+                <input
+                  class="grow mono"
+                  id="manualAgentUrl"
+                  placeholder="Agent API Endpoint URL"
+                />
+              </div>
+              <div class="sub">
+                Push payment entry for dashboard visibility.
+              </div>
+              <div class="sub" style="margin-top: 12px; margin-bottom: 4px">
+                Payment Configuration
+              </div>
+              <div class="row" style="margin-top: 10px">
+                <input
+                  class="grow mono"
+                  id="paymentRecipientInput"
+                  placeholder="recipient 0x..."
+                />
+                <input
+                  id="paymentAmountInput"
+                  style="max-width: 100px"
+                  value="0.0005"
+                />
+              </div>
+              <div class="btn-group">
+                <button id="paymentBtn">Run Payment</button>
+              </div>
+              <div
+                class="status-banner"
+                id="paymentStatus"
+                style="margin-top: 10px"
+              >
+                No payment run yet.
+              </div>
+            </div>
+          </div>
+          <div class="grid main">
+            <div class="stack">
+              <div class="panel glass">
+                <h2>Run Timeline</h2>
+                <div class="chips">
+                  <span class="chip warn" id="runStateChip">idle</span>
+                </div>
+                <div class="timeline" id="timeline"></div>
+              </div>
+              <div class="panel glass">
+                <h2>Live Log</h2>
+                <div class="log" id="runLog"></div>
+              </div>
+              <div class="panel glass">
+                <h2>Recent Runs</h2>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>run</th>
+                        <th>mode</th>
+                        <th>status</th>
+                        <th>agreements</th>
+                        <th>updated</th>
+                      </tr>
+                    </thead>
+                    <tbody id="runsBody">
+                      <tr>
+                        <td colspan="5">No runs.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="stack">
+              <div class="panel glass">
+                <h2>Recent Disputes</h2>
+                <div class="sub">
+                  Live dispute outcomes with full judicial opinion and
+                  reasoning.
+                </div>
+                <div class="disputes-list" id="recentDisputes">
+                  <div class="sub">No disputes yet.</div>
+                </div>
+              </div>
+              <div class="panel glass">
+                <h2>Verdicts</h2>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>dispute</th>
+                        <th>agreement</th>
+                        <th>status</th>
+                        <th>winner</th>
+                        <th>confidence</th>
+                      </tr>
+                    </thead>
+                    <tbody id="verdictsBody">
+                      <tr>
+                        <td colspan="5">No verdicts.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div
+                  class="status-banner"
+                  id="verdictDetail"
+                  style="margin-top: 10px"
+                >
+                  No verdict selected.
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="display: none">
+            <div id="quickUrls"></div>
+            <div id="connectionBanner"></div>
+          </div>
+        </div>
+        <div class="tab-pane" id="tab-court">
+          <div class="court-dashboard">
+            <div class="court-stats" id="courtStats">
+              <div class="court-stat-card">
+                <div class="court-stat-value brand">0</div>
+                <div class="court-stat-label">Disputes</div>
+              </div>
+              <div class="court-stat-card">
+                <div class="court-stat-value ok">0</div>
+                <div class="court-stat-label">Resolved</div>
+              </div>
+              <div class="court-stat-card">
+                <div class="court-stat-value warn">0</div>
+                <div class="court-stat-label">Services</div>
+              </div>
+              <div class="court-stat-card">
+                <div class="court-stat-value">0</div>
+                <div class="court-stat-label">Transactions</div>
+              </div>
+              <div class="court-stat-card">
+                <div class="court-stat-value ok">$0.0000</div>
+                <div class="court-stat-label">USDC in Escrow</div>
+              </div>
+            </div>
+            <div class="court-block">
+              <h2 class="court-heading">Court System</h2>
+              <div class="court-tier-grid">
+                <div class="tier-card district">
+                  <div class="tier-name">District Court</div>
+                  <div class="tier-model mono">claude-haiku-4-5</div>
+                  <div class="tier-fee district">$0.0050</div>
+                  <div class="tier-rule">First Hearing</div>
+                </div>
+                <div class="tier-card appeals">
+                  <div class="tier-name">Appeals Court</div>
+                  <div class="tier-model mono">claude-sonnet-4-6</div>
+                  <div class="tier-fee appeals">$0.0100</div>
+                  <div class="tier-rule">1 Prior Loss</div>
+                </div>
+                <div class="tier-card supreme">
+                  <div class="tier-name">Supreme Court</div>
+                  <div class="tier-model mono">claude-opus-4-6</div>
+                  <div class="tier-fee supreme">$0.0200</div>
+                  <div class="tier-rule">Final Ruling</div>
+                </div>
+              </div>
+            </div>
+            <div class="court-block">
+              <div class="section-head-row">
+                <h2 class="court-heading">Registered Services</h2>
+                <span class="section-pill" id="servicesCountPill">0</span>
+              </div>
+              <div class="service-list" id="registeredServices">
+                <div class="sub">No services yet.</div>
+              </div>
+            </div>
+            <div class="court-block">
+              <h2 class="court-heading">Registered Agents</h2>
+              <div class="agent-list" id="registeredAgents">
+                <div class="sub">No agents yet.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane" id="tab-network">
+          <div class="grid main">
+            <div class="stack">
+              <div class="panel glass">
+                <h2>Service Health</h2>
+                <div class="health-grid" id="healthGrid"></div>
+              </div>
+              <div class="panel glass">
+                <h2>Agreement Explorer</h2>
+                <div class="row" style="margin-top: 10px">
+                  <input
+                    class="grow mono"
+                    id="agreementInput"
+                    placeholder="agreementId"
+                  />
+                  <button id="loadAgreementBtn">Load</button>
+                </div>
+                <div
+                  class="status-banner"
+                  id="agreementDetail"
+                  style="margin-top: 10px"
+                >
+                  No agreement loaded.
+                </div>
+              </div>
+            </div>
+            <div class="stack">
+              <div class="panel glass">
+                <h2>Reputation</h2>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>actor</th>
+                        <th>score</th>
+                        <th>confidence</th>
+                        <th>components</th>
+                      </tr>
+                    </thead>
+                    <tbody id="reputationBody">
+                      <tr>
+                        <td colspan="4">No reputation rows.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div
+                  class="status-banner"
+                  id="reputationDetail"
+                  style="margin-top: 10px"
+                >
+                  No actor selected.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script>
+      // Tab Switching Logic
+      document.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document
+            .querySelectorAll(".tab-btn")
+            .forEach((b) => b.classList.remove("active"));
+          document
+            .querySelectorAll(".tab-pane")
+            .forEach((p) => p.classList.remove("active"));
+
+          btn.classList.add("active");
+          document
+            .getElementById(btn.getAttribute("data-tab"))
+            .classList.add("active");
+        });
+      });
+
+      const STATE = {
+        connected: false,
+        runnerBase: "",
+        services: {
+          runner: "",
+          evidence: "",
+          provider: "",
+          judge: "",
+          reputation: "",
+        },
+        explorerUrl: "https://explorer.testnet3.goat.network",
+        currentRunId: null,
+        stream: null,
+        judgeWallet: "0x00289Dbbb86b64881CEA492D14178CF886b066Be",
+      };
+
+      const $ = (id) => document.getElementById(id);
+
+      function nowIso() {
+        return new Date().toISOString();
+      }
+
+      function short(v, n = 10) {
+        if (!v || typeof v !== "string") return "-";
+        if (v.length <= n + 4) return v;
+        return `${v.slice(0, n)}...${v.slice(-4)}`;
+      }
+
+      function fmtTime(ms) {
+        if (!ms) return "-";
+        return new Date(ms).toLocaleString();
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function tierName(input) {
+        if (typeof input === "string" && input.trim())
+          return input.trim().toLowerCase();
+        const n = Number(input);
+        if (n === 1) return "appeals";
+        if (n === 2) return "supreme";
+        return "district";
+      }
+
+      function inferWinnerRole(v) {
+        const winner = String(v.winner || "").toLowerCase();
+        const plaintiff = String(v.plaintiff || "").toLowerCase();
+        const defendant = String(v.defendant || "").toLowerCase();
+        if (winner === "plaintiff" || (plaintiff && winner === plaintiff))
+          return "plaintiff";
+        if (winner === "defendant" || (defendant && winner === defendant))
+          return "defendant";
+        return "unknown";
+      }
+
+      function formatUsdc(raw) {
+        if (raw === null || raw === undefined || raw === "") return "-";
+        const s = String(raw).trim();
+        if (!/^-?\d+$/.test(s)) {
+          const asNum = Number(s);
+          if (Number.isFinite(asNum)) return `${asNum.toFixed(4)} USDC`;
+          return `${s} USDC`;
+        }
+        const neg = s.startsWith("-");
+        const digits = neg ? s.slice(1) : s;
+        const decimals = digits.length >= 13 ? 18 : 6;
+        const padded = digits.padStart(decimals + 1, "0");
+        const whole =
+          padded.slice(0, -decimals).replace(/^0+(?=\d)/, "") || "0";
+        const frac = padded.slice(-decimals).slice(0, 4);
+        return `${neg ? "-" : ""}${whole}.${frac} USDC`;
+      }
+
+      function toUsdNumber(raw) {
+        if (raw === null || raw === undefined || raw === "") return 0;
+        if (typeof raw === "number") return Number.isFinite(raw) ? raw : 0;
+        const s = String(raw).trim();
+        if (!s) return 0;
+        if (!/^-?\d+$/.test(s)) {
+          const parsed = Number(s);
+          return Number.isFinite(parsed) ? parsed : 0;
+        }
+        const neg = s.startsWith("-");
+        const digits = neg ? s.slice(1) : s;
+        const decimals = digits.length >= 13 ? 18 : 6;
+        const parsed = Number(digits) / Math.pow(10, decimals);
+        return neg ? -parsed : parsed;
+      }
+
+      function formatOpinionHTML(text) {
+        if (!text) return "";
+        let escaped = String(text).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+        let jsonBlock = "";
+        const jsonMatch = escaped.match(/```json([\s\S]*?)```/);
+        if (jsonMatch) {
+          jsonBlock = `<pre class="json-block">${jsonMatch[1].trim()}</pre>`;
+          escaped = escaped.replace(
+            /```json[\s\S]*?```/,
+            "___JSON_BLOCK_HERE___",
+          );
+        }
+
+        // Deal with real newlines, not just escaped literal '\n'
+        escaped = escaped.replace(/\\n/g, "\n");
+        const lines = escaped.split("\n");
+        let parsed = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          let line = lines[i].trim();
+          if (line === "___JSON_BLOCK_HERE___") {
+            parsed.push(jsonBlock);
+            continue;
+          }
+          if (line === "") {
+            parsed.push("<br/>");
+            continue;
+          }
+
+          if (
+            line.includes("AGENT COURT PROTOCOL") ||
+            line.includes("JUDICIAL OPINION")
+          ) {
+            parsed.push(
+              `<h1 class="court-title" style="margin-top: 32px;">${line}</h1>`,
+            );
+          } else if (/^[IVX]+\.\s+[A-Z\s:]+/.test(line)) {
+            parsed.push(`<h2>${line}</h2>`);
+          } else if (line.startsWith("Case No")) {
+            parsed.push(`<h3>${line}</h3>`);
+          } else if (line.match(/^0x[a-fA-F0-9]{40}/)) {
+            let cleanLine = line.replace(
+              /(0x[a-fA-F0-9]{40})/g,
+              `<code>$1</code>`,
+            );
+            parsed.push(`<p><strong>${cleanLine}</strong></p>`);
+          } else if (/^[\-\•]\s/.test(line) || /^\d+\.\s/.test(line)) {
+            let pLine = line.replace(/`(.*?)`/g, `<code>$1</code>`);
+            pLine = pLine.replace(/\*\*(.*?)\*\*/g, `<strong>$1</strong>`);
+            pLine = pLine.replace(/\*(.*?)\*/g, `<em>$1</em>`);
+            parsed.push(
+              `<div style="margin-left: 16px; margin-bottom: 8px;">${pLine}</div>`,
+            );
+          } else {
+            let pLine = line.replace(/`(.*?)`/g, `<code>$1</code>`);
+            pLine = pLine.replace(/\*\*(.*?)\*\*/g, `<strong>$1</strong>`);
+            pLine = pLine.replace(/\*(.*?)\*/g, `<em>$1</em>`);
+            parsed.push(`<p>${pLine}</p>`);
+          }
+        }
+        return `<div>${parsed.join("")}</div>`;
+      }
+
+      function verdictOpinionText(v) {
+        if (v.fullOpinion && String(v.fullOpinion).trim()) {
+          return String(v.fullOpinion);
+        }
+        const fallback = {
+          winner:
+            inferWinnerRole(v) === "unknown"
+              ? v.winner || "-"
+              : inferWinnerRole(v),
+          reasoning:
+            v.reasoning ||
+            "No long-form opinion available. See reasonCodes/facts for deterministic judgment output.",
+          reasonCodes: v.reasonCodes || [],
+          flags: v.flags || [],
+        };
+        return JSON.stringify(fallback, null, 2);
+      }
+
+      function normalizeVerdict(item) {
+        if (item && typeof item.payload === "object") {
+          return {
+            ...item.payload,
+            status: item.status || item.payload.status,
+          };
+        }
+        return item || {};
+      }
+
+      function actorToAddress(actorId) {
+        if (!actorId) return "";
+        const s = String(actorId).trim();
+        if (s.startsWith("did:8004:")) return s.slice("did:8004:".length);
+        return s;
+      }
+
+      function isAddress(value) {
+        return /^0x[a-fA-F0-9]{40}$/.test(String(value || ""));
+      }
+
+      function toDid(value) {
+        const addr = actorToAddress(value);
+        if (!isAddress(addr)) return "";
+        return `did:8004:${addr}`;
+      }
+
+      function normalizedAddress(value) {
+        const addr = actorToAddress(value);
+        if (!isAddress(addr)) return "";
+        return addr.toLowerCase();
+      }
+
+      async function fetchOptionalJson(url) {
+        try {
+          return await fetchJson(url);
+        } catch {
+          return null;
+        }
+      }
+
+      function renderRecentDisputes(items) {
+        const root = $("recentDisputes");
+        root.innerHTML = "";
+        if (!items || !items.length) {
+          root.innerHTML = '<div class="sub">No disputes yet.</div>';
+          return;
+        }
+
+        const sorted = items
+          .slice()
+          .sort((a, b) => Number(b.disputeId || 0) - Number(a.disputeId || 0));
+
+        sorted.forEach((raw) => {
+          const v = normalizeVerdict(raw);
+          const role = inferWinnerRole(v);
+          const plaintiff = v.plaintiff || "-";
+          const defendant = v.defendant || "-";
+          const winnerAddress =
+            role === "plaintiff"
+              ? plaintiff
+              : role === "defendant"
+                ? defendant
+                : v.winner || "-";
+          const outcomeText =
+            role === "plaintiff"
+              ? "PLAINTIFF WINS"
+              : role === "defendant"
+                ? "DEFENDANT WINS"
+                : "JUDGMENT ISSUED";
+          const tier = tierName(v.courtTier || v.tier);
+          const statusText = String(v.status || "unknown").toUpperCase();
+          const txRef = v.transactionId ? `TX #${v.transactionId}` : "TX #-";
+          const opinion = verdictOpinionText(v);
+
+          const card = document.createElement("div");
+          card.className = "dispute-card";
+          card.innerHTML = `
+            <div class="dispute-top">
+              <div>
+                <div class="dispute-id">DISPUTE #${escapeHtml(v.disputeId || "-")} &nbsp;&nbsp; ${escapeHtml(txRef)}</div>
+                <div class="dispute-party-line">
+                  <div>
+                    <div class="sub">PLAINTIFF</div>
+                    <div class="dispute-party">${escapeHtml(short(plaintiff, 6))}</div>
+                  </div>
+                  <div class="dispute-vs">VS</div>
+                  <div>
+                    <div class="sub">DEFENDANT</div>
+                    <div class="dispute-party">${escapeHtml(short(defendant, 6))}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="dispute-right">
+                <div class="dispute-amount">${escapeHtml(formatUsdc(v.stake || "0"))}</div>
+                <div class="chips" style="justify-content: flex-end; margin-top: 6px">
+                  <span class="chip warn">${escapeHtml(tier)}</span>
+                  <span class="chip ${statusChipClass(v.status || "unknown")}">${escapeHtml(statusText)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="dispute-outcome">
+              <div class="winner ${role === "defendant" ? "defendant" : role === "plaintiff" ? "plaintiff" : ""}">${escapeHtml(outcomeText)}</div>
+              <div class="meta">- ${escapeHtml(tier)} court - Winner: ${escapeHtml(short(winnerAddress, 8))}</div>
+            </div>
+
+            <div class="dispute-details">
+              <div class="dispute-grid">
+                <div class="dispute-stat">
+                  <div class="label">Plaintiff Evidence</div>
+                  <div class="value">${escapeHtml(v.plaintiffEvidence || "0x0")}</div>
+                </div>
+                <div class="dispute-stat">
+                  <div class="label">Defendant Evidence</div>
+                  <div class="value">${escapeHtml(v.defendantEvidence || "0x0")}</div>
+                </div>
+                <div class="dispute-stat">
+                  <div class="label">Stake</div>
+                  <div class="value">${escapeHtml(formatUsdc(v.stake || "0"))}</div>
+                </div>
+                <div class="dispute-stat">
+                  <div class="label">Judge Fee</div>
+                  <div class="value">${escapeHtml(formatUsdc(v.judgeFee || "0"))}</div>
+                </div>
+              </div>
+
+              <div class="opinion-box">
+                <div class="opinion-head">
+                  <div class="opinion-title">Judicial Opinion</div>
+                  <div class="opinion-court">${escapeHtml(tier)} court</div>
+                </div>
+                <div class="opinion-parsed" style="margin-top: 24px; padding: 24px; background: rgba(0,0,0,0.02); border-radius: 12px; border: 1px solid rgba(0,0,0,0.05);">${formatOpinionHTML(opinion)}</div>
+              </div>
+            </div>
+          `;
+
+          card.addEventListener("click", () => {
+            // Toggle expanded class on details
+            const details = card.querySelector(".dispute-details");
+            if (details) {
+              details.classList.toggle("expanded");
+            }
+            if (v.disputeId !== undefined && v.disputeId !== null) {
+              openVerdict(v.disputeId);
+            }
+          });
+          root.appendChild(card);
+        });
+      }
+
+      function renderCourtStats(stats) {
+        const root = $("courtStats");
+        const escrowText = `$${Number(stats.escrow || 0).toFixed(4)}`;
+        root.innerHTML = `
+          <div class="court-stat-card">
+            <div class="court-stat-value brand">${Number(stats.disputes || 0)}</div>
+            <div class="court-stat-label">Disputes</div>
+          </div>
+          <div class="court-stat-card">
+            <div class="court-stat-value ok">${Number(stats.resolved || 0)}</div>
+            <div class="court-stat-label">Resolved</div>
+          </div>
+          <div class="court-stat-card">
+            <div class="court-stat-value warn">${Number(stats.services || 0)}</div>
+            <div class="court-stat-label">Services</div>
+          </div>
+          <div class="court-stat-card">
+            <div class="court-stat-value">${Number(stats.transactions || 0)}</div>
+            <div class="court-stat-label">Transactions</div>
+          </div>
+          <div class="court-stat-card">
+            <div class="court-stat-value ok">${escapeHtml(escrowText)}</div>
+            <div class="court-stat-label">USDC in Escrow</div>
+          </div>
+        `;
+      }
+
+      function renderRegisteredServices(agreements, verdicts) {
+        const root = $("registeredServices");
+        const pill = $("servicesCountPill");
+        const items = Array.isArray(agreements) ? agreements.slice() : [];
+        pill.textContent = String(items.length);
+        if (!items.length) {
+          root.innerHTML = '<div class="sub">No services yet.</div>';
+          return;
+        }
+
+        const sorted = items.sort(
+          (a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0),
+        );
+        root.innerHTML = sorted
+          .map((agreement, idx) => {
+            const related = verdicts.filter(
+              (v) =>
+                String(v.agreementId || "") ===
+                String(agreement.agreementId || ""),
+            );
+            const providerFromVerdict = actorToAddress(
+              related[0]?.defendant || "",
+            );
+            const providerFromActors = (agreement.actors || [])
+              .map((a) => actorToAddress(a))
+              .find((a) => isAddress(a));
+            const provider = providerFromVerdict || providerFromActors || "-";
+            const calls = Number(
+              agreement.requestCount || agreement.receiptCount || 0,
+            );
+            const disputes = related.length;
+            const bond = related.length
+              ? formatUsdc(related[0].stake || "0")
+              : "0.0010 USDC";
+            const status = "Active";
+            return `
+              <div class="service-card">
+                <div class="top">
+                  <div>
+                    <div class="service-id">Service #${idx}</div>
+                    <div class="service-provider">Provider: ${escapeHtml(short(provider, 6))}</div>
+                    <div class="service-meta">Calls: ${calls} &nbsp;&nbsp; Disputes: ${disputes} &nbsp;&nbsp; Bond: ${escapeHtml(
+                      bond,
+                    )} &nbsp;&nbsp; Status: ${status}</div>
+                  </div>
+                  <div class="service-price">0.0050 USDC</div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function tierRank(input) {
+        const t = tierName(input);
+        if (t === "supreme") return 3;
+        if (t === "appeals") return 2;
+        return 1;
+      }
+
+      function renderRegisteredAgents(
+        addresses,
+        verdicts,
+        agreements,
+        detailMap,
+      ) {
+        const root = $("registeredAgents");
+        const uniq = Array.from(
+          new Set(
+            (addresses || [])
+              .map((a) => actorToAddress(a))
+              .filter((a) => isAddress(a)),
+          ),
+        );
+        if (!uniq.length) {
+          root.innerHTML = '<div class="sub">No agents yet.</div>';
+          return;
+        }
+
+        const rows = uniq.map((address) => {
+          const lower = normalizedAddress(address);
+          const detail = detailMap.get(lower) || {};
+          const history = Array.isArray(detail.history) ? detail.history : [];
+          const repScore = Number(detail.score ?? 100);
+          let wins = history.filter((h) => h.reason === "won_dispute").length;
+          let losses = history.filter(
+            (h) => h.reason === "lost_dispute",
+          ).length;
+          let txCount = history.length;
+          let balance = 0;
+          let tier = "district";
+
+          const involved = verdicts.filter((v) => {
+            const plaintiff = normalizedAddress(v.plaintiff);
+            const defendant = normalizedAddress(v.defendant);
+            const winner = normalizedAddress(v.winner);
+            const loser = normalizedAddress(v.loser);
+            return (
+              lower &&
+              (lower === plaintiff ||
+                lower === defendant ||
+                lower === winner ||
+                lower === loser)
+            );
+          });
+
+          involved.forEach((v) => {
+            const winner = normalizedAddress(v.winner);
+            const loser = normalizedAddress(v.loser);
+            if (winner === lower) wins += 1;
+            if (loser === lower) losses += 1;
+            const stake = toUsdNumber(v.stake || 0);
+            const judgeFee = toUsdNumber(v.judgeFee || 0);
+            if (winner === lower) balance += stake;
+            if (loser === lower) balance -= stake + judgeFee;
+            if (tierRank(v.courtTier || v.tier) > tierRank(tier)) {
+              tier = tierName(v.courtTier || v.tier);
+            }
+          });
+
+          agreements.forEach((agreement) => {
+            const hasActor = (agreement.actors || [])
+              .map((a) => normalizedAddress(a))
+              .includes(lower);
+            if (hasActor) {
+              txCount += Number(agreement.requestCount || 0);
+            }
+          });
+
+          const role =
+            lower === normalizedAddress(STATE.judgeWallet) ? "judge" : "agent";
+          return {
+            address,
+            score: repScore,
+            transactions: txCount,
+            wins,
+            losses,
+            balance,
+            role,
+            tier,
+          };
+        });
+
+        rows.sort((a, b) => Number(b.score) - Number(a.score));
+        root.innerHTML = rows
+          .map((row) => {
+            const tierClass = ["district", "appeals", "supreme"].includes(
+              row.tier,
+            )
+              ? row.tier
+              : "district";
+            return `
+              <div class="agent-card">
+                <div class="top">
+                  <div>
+                    <div class="agent-address">${escapeHtml(row.address)}</div>
+                    <a class="agent-explorer" href="${STATE.explorerUrl}/address/${row.address}" target="_blank">View on Explorer ↗</a>
+                  </div>
+                  <div class="agent-tags">
+                    <span class="agent-tag ${row.role}">${row.role.toUpperCase()}</span>
+                    <span class="agent-tag ${tierClass}">${tierClass.toUpperCase()}</span>
+                  </div>
+                </div>
+                <div class="agent-grid">
+                  <div class="agent-stat">
+                    <div class="value warn">${Math.abs(Number(row.balance || 0)).toFixed(4)}</div>
+                    <div class="label">Court Balance (USDC)</div>
+                  </div>
+                  <div class="agent-stat">
+                    <div class="value">${Number(row.transactions || 0)}</div>
+                    <div class="label">Transactions</div>
+                  </div>
+                  <div class="agent-stat">
+                    <div class="value ok">${Number(row.wins || 0)}</div>
+                    <div class="label">Disputes Won</div>
+                  </div>
+                  <div class="agent-stat">
+                    <div class="value bad">${Number(row.losses || 0)}</div>
+                    <div class="label">Disputes Lost</div>
+                  </div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      async function refreshCourtDashboard(seed = {}) {
+        const verdicts =
+          Array.isArray(seed.verdicts) && seed.verdicts.length >= 0
+            ? seed.verdicts.map(normalizeVerdict)
+            : (
+                (await fetchOptionalJson(`${STATE.services.judge}/verdicts`))
+                  ?.items || []
+              ).map(normalizeVerdict);
+
+        let agreements =
+          (
+            await fetchOptionalJson(
+              `${STATE.services.evidence}/agreements?limit=300`,
+            )
+          )?.items || [];
+        if (!agreements.length) {
+          const clauses =
+            (
+              await fetchOptionalJson(
+                `${STATE.services.evidence}/clauses?limit=300`,
+              )
+            )?.items || [];
+          agreements = clauses.map((c) => ({
+            agreementId: c.agreementId,
+            clauseId: c.clauseId,
+            clauseHash: c.clauseHash,
+            serviceScope: c.serviceScope,
+            createdAt: c.createdAt,
+            receiptCount: 0,
+            requestCount: 0,
+            responseCount: 0,
+            actors: [],
+          }));
+        }
+
+        const reputationItems =
+          Array.isArray(seed.reputation) && seed.reputation.length >= 0
+            ? seed.reputation
+            : (
+                await fetchOptionalJson(
+                  `${STATE.services.reputation}/reputation`,
+                )
+              )?.items || [];
+
+        const actorSet = new Set();
+        reputationItems.forEach((item) => {
+          const addr = actorToAddress(item.actorId);
+          if (isAddress(addr)) actorSet.add(addr);
+        });
+        verdicts.forEach((v) => {
+          [v.plaintiff, v.defendant, v.winner, v.loser].forEach((entry) => {
+            const addr = actorToAddress(entry);
+            if (isAddress(addr)) actorSet.add(addr);
+          });
+        });
+        agreements.forEach((agreement) => {
+          (agreement.actors || []).forEach((actor) => {
+            const addr = actorToAddress(actor);
+            if (isAddress(addr)) actorSet.add(addr);
+          });
+        });
+        if (isAddress(STATE.judgeWallet)) {
+          actorSet.add(actorToAddress(STATE.judgeWallet));
+        }
+
+        const detailPairs = await Promise.all(
+          Array.from(actorSet).map(async (addr) => {
+            const did = toDid(addr);
+            const detail = did
+              ? await fetchOptionalJson(
+                  `${STATE.services.reputation}/reputation/${encodeURIComponent(did)}`,
+                )
+              : null;
+            return [normalizedAddress(addr), detail];
+          }),
+        );
+        const detailMap = new Map(detailPairs);
+
+        const disputes = verdicts.length;
+        const resolved = verdicts.filter((v) => {
+          const status = String(v.status || "").toLowerCase();
+          return (
+            status === "submitted" ||
+            status === "resolved" ||
+            status === "complete"
+          );
+        }).length;
+        const services = agreements.length;
+        const transactions = agreements.reduce(
+          (sum, item) =>
+            sum + Number(item.requestCount || item.receiptCount || 0),
+          0,
+        );
+        const escrow = verdicts.reduce(
+          (sum, item) => sum + Math.max(0, toUsdNumber(item.stake || 0)),
+          0,
+        );
+
+        renderCourtStats({
+          disputes,
+          resolved,
+          services,
+          transactions,
+          escrow,
+        });
+        renderRegisteredServices(agreements, verdicts);
+        renderRegisteredAgents(
+          Array.from(actorSet),
+          verdicts,
+          agreements,
+          detailMap,
+        );
+      }
+
+      function statusChipClass(status) {
+        if (
+          status === "done" ||
+          status === "complete" ||
+          status === "submitted"
+        )
+          return "ok";
+        if (status === "error" || status === "failed") return "bad";
+        return "warn";
+      }
+
+      function defaultRunnerUrl() {
+        const saved = window.localStorage.getItem("vp_runner_url");
+        if (saved) return saved;
+        const host = window.location.hostname || "127.0.0.1";
+        return `http://${host}:4004`;
+      }
+
+      function setRunnerState(text, level = "warn") {
+        $("runnerLabel").textContent = text;
+        $("runnerDot").className = `dot ${level}`;
+      }
+
+      function setConnectionBanner(text, level = "warn") {
+        const el = $("connectionBanner");
+        el.textContent = text;
+        el.className = `status-banner ${level === "warn" ? "warn" : ""}`;
+      }
+
+      function appendLog(msg) {
+        const row = document.createElement("div");
+        row.className = "log-line";
+        row.textContent = `${nowIso()}  ${msg}`;
+        const pane = $("runLog");
+        pane.appendChild(row);
+        pane.scrollTop = pane.scrollHeight;
+      }
+
+      async function fetchJson(url, options) {
+        const res = await fetch(url, options);
+        let body = null;
+        try {
+          body = await res.json();
+        } catch {
+          body = null;
+        }
+        if (!res.ok) {
+          const detail =
+            (body && (body.detail || body.message || body.error)) ||
+            `HTTP ${res.status}`;
+          throw new Error(detail);
+        }
+        return body;
+      }
+
+      function getServiceHost(baseUrl) {
+        try {
+          return new URL(baseUrl).hostname;
+        } catch {
+          return "127.0.0.1";
+        }
+      }
+
+      function deriveDefaultServices(baseUrl) {
+        const host = getServiceHost(baseUrl);
+        return {
+          runner: baseUrl,
+          evidence: `http://${host}:4001`,
+          provider: `http://${host}:4000`,
+          judge: `http://${host}:4002`,
+          reputation: `http://${host}:4003`,
+        };
+      }
+
+      async function connectRunner() {
+        const url = $("runnerUrlInput").value.trim().replace(/\/+$/, "");
+        if (!url) {
+          throw new Error("Runner URL is empty");
+        }
+
+        window.localStorage.setItem("vp_runner_url", url);
+        STATE.runnerBase = url;
+        STATE.services = deriveDefaultServices(url);
+
+        const health = await fetchJson(`${url}/health`);
+        const cfg = await fetchJson(`${url}/config`);
+        if (cfg.services) {
+          STATE.services = cfg.services;
+        }
+        STATE.connected = true;
+        STATE.explorerUrl =
+          cfg.explorerUrl || health.explorer || STATE.explorerUrl;
+
+        $("explorerLink").href = STATE.explorerUrl;
+        $("contractLine").textContent =
+          `contract: ${cfg.contractAddress || health.contractAddress || "-"}`;
+        setRunnerState(`runner: connected (${url})`, "ok");
+        setConnectionBanner("Connected. Controls are active.", "ok");
+        renderEnvPanel(cfg, health);
+      }
+
+      function renderHealth(health) {
+        const grid = $("healthGrid");
+        grid.innerHTML = "";
+        Object.entries(health).forEach(([name, status]) => {
+          const card = document.createElement("div");
+          card.className = "health-item";
+          card.innerHTML = `
+            <div class="name">${name}</div>
+            <div style="margin-top:6px"><span class="chip ${statusChipClass(status)}">${status}</span></div>
+          `;
+          grid.appendChild(card);
+        });
+      }
+
+      async function refreshHealth() {
+        const health = {};
+        const entries = Object.entries(STATE.services);
+        for (const [name, base] of entries) {
+          try {
+            const payload = await fetchJson(`${base}/health`);
+            const status = (
+              payload && payload.status ? String(payload.status) : "ok"
+            ).toLowerCase();
+            if (status === "degraded" || status === "warn") {
+              health[name] = "warn";
+            } else {
+              health[name] = "ok";
+            }
+          } catch {
+            health[name] = "down";
+          }
+        }
+        renderHealth(health);
+      }
+
+      function renderTimeline(steps) {
+        const root = $("timeline");
+        root.innerHTML = "";
+        if (!steps || !steps.length) {
+          root.innerHTML = '<div class="sub">No steps yet.</div>';
+          return;
+        }
+        steps.forEach((s) => {
+          const card = document.createElement("div");
+          card.className = `step ${s.status || "running"}`;
+          card.innerHTML = `
+            <div class="meta mono">${s.stepId || "-"}</div>
+            <div class="title">${s.label || s.stepId || "-"}</div>
+            <div class="sub">${s.message || ""}</div>
+          `;
+          root.appendChild(card);
+        });
+      }
+
+      async function openRun(runId) {
+        const run = await fetchJson(`${STATE.runnerBase}/runs/${runId}`);
+        STATE.currentRunId = run.runId;
+        $("activeRunText").textContent =
+          `active run: ${run.runId} (${run.status})`;
+        $("runStateChip").className = `chip ${statusChipClass(run.status)}`;
+        $("runStateChip").textContent = run.status;
+        renderTimeline(run.steps || []);
+        if (run.agreementIds && run.agreementIds.length) {
+          $("agreementInput").value =
+            run.agreementIds[run.agreementIds.length - 1];
+        }
+        appendLog(`opened run ${runId}`);
+        startStream(runId);
+      }
+
+      function startStream(runId) {
+        if (STATE.stream) {
+          STATE.stream.close();
+        }
+        const source = new EventSource(
+          `${STATE.runnerBase}/runs/${runId}/stream`,
+        );
+        STATE.stream = source;
+
+        source.onmessage = async (event) => {
+          if (!event.data) return;
+          let payload = null;
+          try {
+            payload = JSON.parse(event.data);
+          } catch {
+            return;
+          }
+          appendLog(
+            `${payload.type || "event"} | ${payload.label || payload.stepId || ""} | ${payload.message || ""}`,
+          );
+          try {
+            const run = await fetchJson(`${STATE.runnerBase}/runs/${runId}`);
+            $("runStateChip").className = `chip ${statusChipClass(run.status)}`;
+            $("runStateChip").textContent = run.status;
+            renderTimeline(run.steps || []);
+            $("activeRunText").textContent =
+              `active run: ${run.runId} (${run.status})`;
+
+            if (
+              (run.status === "complete" || run.status === "error") &&
+              STATE.stream
+            ) {
+              STATE.stream.close();
+              STATE.stream = null;
+              await Promise.allSettled([
+                refreshRuns(),
+                refreshVerdicts(),
+                refreshReputation(),
+                refreshCourtDashboard(),
+              ]);
+            }
+          } catch (err) {
+            appendLog(`run refresh error: ${err.message}`);
+          }
+        };
+
+        source.onerror = () => {
+          appendLog("SSE stream disconnected");
+        };
+      }
+
+      async function createRun(mode) {
+        const payload = {
+          mode,
+          startServices: true,
+          keepServices: true,
+          autoRun: true,
+          agreementWindowSec: Number($("windowSec").value || 30),
+        };
+        const created = await fetchJson(`${STATE.runnerBase}/runs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        appendLog(`created run ${created.runId} (${mode})`);
+        await refreshRuns();
+        await openRun(created.runId);
+      }
+
+      async function refreshRuns() {
+        const data = await fetchJson(`${STATE.runnerBase}/runs`);
+        const runs = data.runs || [];
+        const body = $("runsBody");
+        body.innerHTML = "";
+        if (!runs.length) {
+          body.innerHTML = '<tr><td colspan="5">No runs.</td></tr>';
+          return;
+        }
+        runs.forEach((run) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td><button data-run="${run.runId}">open</button> <span class="mono">${short(run.runId)}</span></td>
+            <td>${run.mode}</td>
+            <td><span class="chip ${statusChipClass(run.status)}">${run.status}</span></td>
+            <td class="mono">${(run.agreementIds || []).join(", ")}</td>
+            <td>${fmtTime(run.updateMs)}</td>
+          `;
+          tr.querySelector("button").addEventListener("click", () =>
+            openRun(run.runId),
+          );
+          body.appendChild(tr);
+        });
+      }
+
+      async function loadAgreement(agreementId) {
+        const payload = await fetchJson(
+          `${STATE.services.evidence}/agreements/${encodeURIComponent(agreementId)}`,
+        );
+        const chainStatus = payload.receiptChain?.valid ? "valid" : "invalid";
+        const rootStatus =
+          payload.root?.matched === true
+            ? "matched"
+            : payload.root?.matched === false
+              ? "mismatch"
+              : "unknown";
+        const tx = payload.anchor?.txHash;
+        const txLink = tx ? `${STATE.explorerUrl}/tx/${tx}` : null;
+        const receipts = payload.receipts || [];
+
+        // Summary section
+        let html = `<div style="margin-bottom:12px;">`;
+        html += `agreement: <span class="mono">${payload.agreementId || "-"}</span><br/>`;
+        html += `receipts: ${payload.receiptCount || 0}<br/>`;
+        html += `chain: <span class="chip ${chainStatus === "valid" ? "ok" : "bad"}">${chainStatus}</span><br/>`;
+        html += `root: <span class="mono" style="word-break:break-all">${payload.root?.anchored || "-"}</span> (${rootStatus})`;
+        if (txLink) {
+          html += `<br/>anchor tx: <a class="inline-link mono" href="${txLink}" target="_blank">${short(tx, 14)}</a>`;
+        }
+        html += `</div>`;
+
+        // Receipt chain viewer
+        if (receipts.length > 0) {
+          html += `<div style="margin-top:8px;padding:12px;background:var(--surface-soft);border-radius:10px;border:1px solid var(--line);">`;
+          html += `<div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--brand);">Receipt Chain</div>`;
+          receipts.forEach((r, i) => {
+            const typeColors = {
+              request: "var(--brand)", response: "var(--ok)", payment: "var(--warn)",
+              dispute_filed: "var(--danger)", sla_check: "#8b5cf6", evidence_anchor: "var(--brand-2)"
+            };
+            const color = typeColors[r.eventType] || "var(--text-muted)";
+            html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:11px;">`;
+            html += `<span style="width:18px;height:18px;border-radius:50%;background:${color};color:white;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0">${i + 1}</span>`;
+            html += `<span style="background:${color}22;color:${color};padding:1px 6px;border-radius:4px;font-weight:600;font-size:10px;min-width:60px;text-align:center">${r.eventType || "?"}</span>`;
+            html += `<span class="mono" style="color:var(--text-muted)">${short(r.receiptHash || "", 16)}</span>`;
+            if (r.actorId) html += `<span class="mono" style="color:var(--text-muted);font-size:10px">${short(r.actorId, 10)}</span>`;
+            if (i < receipts.length - 1) {
+              html += `<span style="color:var(--text-muted);font-size:10px">→</span>`;
+            }
+            html += `</div>`;
+          });
+          if (payload.receiptChain?.errors?.length) {
+            html += `<div style="margin-top:6px;color:var(--danger);font-size:11px;">Errors: ${payload.receiptChain.errors.join("; ")}</div>`;
+          }
+          html += `</div>`;
+        }
+
+        // Export button
+        html += `<div style="margin-top:10px;">`;
+        html += `<button onclick="exportAgreement('${agreementId}')" style="font-size:11px;padding:4px 12px;">Export Bundle</button>`;
+        html += `</div>`;
+
+        $("agreementDetail").innerHTML = html;
+      }
+
+      async function exportAgreement(agreementId) {
+        try {
+          const bundle = await fetchJson(
+            `${STATE.services.evidence}/agreements/${encodeURIComponent(agreementId)}/export`,
+          );
+          const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `evidence-bundle-${agreementId}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+          appendLog(`Exported evidence bundle for ${agreementId}`);
+        } catch (err) {
+          appendLog(`Export failed: ${err.message || String(err)}`);
+        }
+      }
+
+      async function refreshVerdicts() {
+        const payload = await fetchJson(`${STATE.services.judge}/verdicts`);
+        const items = (payload.items || []).map(normalizeVerdict);
+        renderRecentDisputes(items);
+        await refreshCourtDashboard({ verdicts: items });
+        const body = $("verdictsBody");
+        body.innerHTML = "";
+        if (!items.length) {
+          body.innerHTML = '<tr><td colspan="5">No verdicts.</td></tr>';
+          return;
+        }
+        items.forEach((v) => {
+          const row = document.createElement("tr");
+          const status = v.status || "unknown";
+          const confidence =
+            typeof v.confidence === "number"
+              ? v.confidence.toFixed(2)
+              : v.confidence || "-";
+          row.innerHTML = `
+            <td><button data-id="${v.disputeId}">open</button> ${v.disputeId}</td>
+            <td class="mono">${short(v.agreementId || "-", 14)}</td>
+            <td><span class="chip ${statusChipClass(status)}">${status}</span></td>
+            <td class="mono">${short(v.winner || "-", 12)}</td>
+            <td>${confidence}</td>
+          `;
+          row
+            .querySelector("button")
+            .addEventListener("click", () => openVerdict(v.disputeId));
+          body.appendChild(row);
+        });
+      }
+
+      async function openVerdict(disputeId) {
+        const v = await fetchJson(
+          `${STATE.services.judge}/verdicts/${disputeId}`,
+        );
+        const rawOpinion = verdictOpinionText(v);
+        const formattedHTML = formatOpinionHTML(rawOpinion);
+
+        // Build verdict package detail with signature, hash, and evidence refs
+        let packageHTML = `<div style="margin-bottom:16px;padding:16px;background:var(--surface-soft);border-radius:12px;border:1px solid var(--line);">`;
+        packageHTML += `<h3 style="margin:0 0 12px 0;font-size:14px;color:var(--brand);">Verdict Package</h3>`;
+        packageHTML += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">`;
+        packageHTML += `<div><span style="color:var(--text-muted)">Dispute ID:</span> <span class="mono">${v.disputeId || "-"}</span></div>`;
+        packageHTML += `<div><span style="color:var(--text-muted)">Status:</span> <span class="chip ${statusChipClass(v.status || "unknown")}">${v.status || "unknown"}</span></div>`;
+        packageHTML += `<div><span style="color:var(--text-muted)">Winner:</span> <span class="mono">${v.winner || "-"}</span></div>`;
+        packageHTML += `<div><span style="color:var(--text-muted)">Confidence:</span> ${typeof v.confidence === "number" ? v.confidence.toFixed(4) : v.confidence || "-"}</div>`;
+        packageHTML += `<div><span style="color:var(--text-muted)">Reason Codes:</span> ${(v.reasonCodes || []).join(", ") || "-"}</div>`;
+        packageHTML += `<div><span style="color:var(--text-muted)">Court Tier:</span> ${v.tier || v.courtTier || "district"}</div>`;
+        if (v.verdictHash) {
+          packageHTML += `<div style="grid-column:1/3"><span style="color:var(--text-muted)">Verdict Hash:</span> <span class="mono" style="word-break:break-all">${v.verdictHash}</span></div>`;
+        }
+        if (v.signature || v.judgeSignature) {
+          const sig = v.signature || v.judgeSignature;
+          packageHTML += `<div style="grid-column:1/3"><span style="color:var(--text-muted)">Judge Signature:</span> <span class="mono" style="word-break:break-all">${short(sig, 20)}</span></div>`;
+        }
+        if (v.agreementId) {
+          packageHTML += `<div style="grid-column:1/3"><span style="color:var(--text-muted)">Agreement:</span> <span class="mono">${short(v.agreementId, 20)}</span></div>`;
+        }
+        if (v.submitTxHash) {
+          packageHTML += `<div style="grid-column:1/3"><span style="color:var(--text-muted)">Ruling TX:</span> <a class="inline-link mono" target="_blank" href="${STATE.explorerUrl}/tx/${v.submitTxHash}">${v.submitTxHash}</a></div>`;
+        }
+        if (v.disputeTxHash) {
+          packageHTML += `<div style="grid-column:1/3"><span style="color:var(--text-muted)">Dispute TX:</span> <a class="inline-link mono" target="_blank" href="${STATE.explorerUrl}/tx/${v.disputeTxHash}">${v.disputeTxHash}</a></div>`;
+        }
+        packageHTML += `</div></div>`;
+
+        document.getElementById("modalBody").innerHTML = packageHTML + formattedHTML;
+        document.getElementById("verdictModal").classList.add("open");
+
+        // Also update the tiny status banner
+        let statusHtml = `
+          dispute: ${v.disputeId}<br/>
+          winner: <span class="mono">${v.winner || "-"}</span><br/>
+          confidence: ${v.confidence ?? "-"}<br/>
+          reasons: ${(v.reasonCodes || []).join(", ") || "-"}
+        `;
+        if (v.submitTxHash) {
+          statusHtml += `<br/>ruling tx: <a class="inline-link mono" target="_blank" href="${STATE.explorerUrl}/tx/${v.submitTxHash}">${short(v.submitTxHash, 14)}</a>`;
+        }
+        if (v.disputeTxHash) {
+          statusHtml += `<br/>dispute tx: <a class="inline-link mono" target="_blank" href="${STATE.explorerUrl}/tx/${v.disputeTxHash}">${short(v.disputeTxHash, 14)}</a>`;
+        }
+        document.getElementById("verdictDetail").innerHTML = statusHtml;
+      }
+
+      async function refreshReputation() {
+        const payload = await fetchJson(
+          `${STATE.services.reputation}/reputation`,
+        );
+        const items = payload.items || [];
+        await refreshCourtDashboard({ reputation: items });
+        const body = $("reputationBody");
+        body.innerHTML = "";
+        if (!items.length) {
+          body.innerHTML = '<tr><td colspan="4">No reputation rows.</td></tr>';
+          return;
+        }
+        items
+          .slice()
+          .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+          .forEach((a) => {
+            const row = document.createElement("tr");
+            const confidence =
+              typeof a.confidence === "number"
+                ? a.confidence.toFixed(2)
+                : a.confidence || "-";
+            const components = a.components
+              ? `S:${a.components.service ?? "-"} C:${a.components.court ?? "-"} R:${a.components.reliability ?? "-"}`
+              : "-";
+            row.innerHTML = `
+              <td><button data-id="${a.actorId}">open</button> <span class="mono">${short(a.actorId, 12)}</span></td>
+              <td>${a.score ?? "-"}</td>
+              <td>${confidence}</td>
+              <td class="mono">${components}</td>
+            `;
+            row
+              .querySelector("button")
+              .addEventListener("click", () => openActor(a.actorId));
+            body.appendChild(row);
+          });
+      }
+
+      async function openActor(actorId) {
+        const payload = await fetchJson(
+          `${STATE.services.reputation}/reputation/${encodeURIComponent(actorId)}`,
+        );
+        const events = payload.history || payload.events || [];
+        const stats = payload.stats || {};
+        const components = payload.components || {};
+        const summary = `
+          actor <span class="mono">${actorId}</span><br/>
+          score: ${payload.score ?? "-"}<br/>
+          model: ${payload.modelVersion || "-"}<br/>
+          confidence: ${typeof stats.confidence === "number" ? stats.confidence.toFixed(2) : stats.confidence || "-"}<br/>
+          service/court/reliability: ${components.service ?? "-"}/${components.court ?? "-"}/${components.reliability ?? "-"}<br/>
+          events: ${stats.eventCount ?? 0} total, ${stats.successfulEventCount ?? 0} successful, ${stats.disputeEventCount ?? 0} disputed
+        `;
+        if (!events.length) {
+          $("reputationDetail").innerHTML = `${summary}<br/><br/>No history.`;
+          return;
+        }
+        const lines = events
+          .slice(0, 8)
+          .map((e) => {
+            const ts = e.atMs || (e.createdAt ? Number(e.createdAt) * 1000 : 0);
+            const label = e.reason || e.action || "-";
+            const detail = e.detail || JSON.stringify(e.payload || {});
+            return `${label} @ ${fmtTime(ts)} (${detail})`;
+          })
+          .join("<br/>");
+        $("reputationDetail").innerHTML = `${summary}<br/><br/>${lines}`;
+      }
+
+      async function runPayment() {
+        const payload = {
+          token: "USDC",
+          amount: $("paymentAmountInput").value || "0.0005",
+          recipient: $("paymentRecipientInput").value.trim() || null,
+          agentName: "Verdict Protocol Operator",
+          agentDescription:
+            "Agent identity for Verdict Protocol payment and arbitration flows",
+          registerAgent: true,
+          dryRun: false,
+          requestFaucet: false,
+        };
+        $("paymentStatus").textContent = "Submitting payment...";
+        const res = await fetchJson(`${STATE.runnerBase}/dashboard-payment`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        let text = `mode=${res.mode || "-"} tx=${res.txHash || "-"}`;
+        if (res.txHash) {
+          text += ` | ${STATE.explorerUrl}/tx/${res.txHash}`;
+        }
+        if (res.sender && res.recipient) {
+          text += ` | ${short(res.sender, 8)} -> ${short(res.recipient, 8)}`;
+        }
+        if (typeof res.visibleInDashboardFeed === "boolean") {
+          text += ` | feed=${res.visibleInDashboardFeed ? "visible" : "pending"}`;
+        }
+        $("paymentStatus").textContent = text;
+      }
+
+      function showDemo() {
+        document.getElementById("landingPage").style.display = "none";
+        document.getElementById("appDashboard").style.display = "flex";
+        // Initialize dashboard state once shown
+        if (!window.hasBooted) {
+          boot();
+          window.hasBooted = true;
+        }
+      }
+
+      function wireQuickRunnerUrls() {
+        const host = window.location.hostname || "127.0.0.1";
+        const choices = [
+          `http://127.0.0.1:4004`,
+          `http://localhost:4004`,
+          `http://${host}:4004`,
+        ];
+        const root = $("quickUrls");
+        root.innerHTML = "";
+        [...new Set(choices)].forEach((url) => {
+          const b = document.createElement("button");
+          b.textContent = short(url, 18);
+          b.className = "mono";
+          b.addEventListener("click", () => {
+            $("runnerUrlInput").value = url;
+          });
+          root.appendChild(b);
+        });
+      }
+
+      async function guarded(action, label) {
+        try {
+          await action();
+        } catch (err) {
+          appendLog(`${label} error: ${err.message || String(err)}`);
+          setConnectionBanner(
+            `${label} failed: ${err.message || String(err)}`,
+            "warn",
+          );
+        }
+      }
+
+      function bindEvents() {
+        $("connectBtn").addEventListener("click", () =>
+          guarded(connectAndRefresh, "connect"),
+        );
+        $("runHappyBtn").addEventListener("click", () =>
+          guarded(() => createRun("happy"), "run happy"),
+        );
+        $("runDisputeBtn").addEventListener("click", () =>
+          guarded(() => createRun("dispute"), "run dispute"),
+        );
+        $("runFullBtn").addEventListener("click", () =>
+          guarded(() => createRun("full"), "run full"),
+        );
+        $("refreshRunsBtn").addEventListener("click", () =>
+          guarded(refreshRuns, "refresh runs"),
+        );
+        $("refreshVerdictsBtn").addEventListener("click", () =>
+          guarded(refreshVerdicts, "refresh verdicts"),
+        );
+        $("refreshReputationBtn").addEventListener("click", () =>
+          guarded(refreshReputation, "refresh reputation"),
+        );
+        $("loadAgreementBtn").addEventListener("click", () =>
+          guarded(
+            () => loadAgreement($("agreementInput").value.trim()),
+            "load agreement",
+          ),
+        );
+        $("paymentBtn").addEventListener("click", () =>
+          guarded(runPayment, "dashboard payment"),
+        );
+      }
+
+      async function connectAndRefresh() {
+        await connectRunner();
+        await Promise.allSettled([
+          refreshHealth(),
+          refreshRuns(),
+          refreshVerdicts(),
+          refreshReputation(),
+          refreshCourtDashboard(),
+        ]);
+      }
+
+      // Dark Mode Logic
+      const themeToggle = document.getElementById("themeToggle");
+      const isDark = localStorage.getItem("vp_theme") === "dark";
+
+      function applyTheme(dark) {
+        if (dark) {
+          document.body.classList.add("dark");
+          if (themeToggle) themeToggle.textContent = "☀ Light Mode";
+          // Swap images for dark mode
+          document.querySelectorAll('img[src*="light.png"]').forEach((img) => {
+            img.src = img.src.replace("light.png", "dark.png");
+          });
+          document
+            .querySelectorAll('link[href*="light.png"]')
+            .forEach((link) => {
+              link.href = link.href.replace("light.png", "dark.png");
+            });
+        } else {
+          document.body.classList.remove("dark");
+          if (themeToggle) themeToggle.textContent = "☾ Dark Mode";
+          // Swap images for light mode
+          document.querySelectorAll('img[src*="dark.png"]').forEach((img) => {
+            img.src = img.src.replace("dark.png", "light.png");
+          });
+          document
+            .querySelectorAll('link[href*="dark.png"]')
+            .forEach((link) => {
+              link.href = link.href.replace("dark.png", "light.png");
+            });
+        }
+      }
+
+      if (isDark) applyTheme(true);
+
+      if (themeToggle) {
+        themeToggle.addEventListener("click", () => {
+          const currentlyDark = document.body.classList.contains("dark");
+          applyTheme(!currentlyDark);
+          localStorage.setItem("vp_theme", !currentlyDark ? "dark" : "light");
+        });
+      }
+
+      function renderEnvPanel(cfg, health) {
+        const panel = $("envPanel");
+        if (!panel) return;
+        const contract = cfg.contractAddress || health.contractAddress || "-";
+        const chainId = cfg.chainId || "-";
+        const explorer = cfg.explorerUrl || STATE.explorerUrl || "-";
+        const mockMode = cfg.mockMode || cfg.dryRun || false;
+
+        let html = `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+            <div><span style="color:var(--text-muted)">Chain ID:</span> <span class="mono">${chainId}</span></div>
+            <div><span style="color:var(--text-muted)">Contract:</span> <span class="mono">${typeof contract === 'string' ? contract.slice(0, 10) + '...' + contract.slice(-6) : '-'}</span></div>
+            <div><span style="color:var(--text-muted)">Explorer:</span> <a class="inline-link" href="${explorer}" target="_blank">link</a></div>
+            <div><span style="color:var(--text-muted)">Mode:</span> <span class="chip ${mockMode ? 'warn' : 'ok'}" style="font-size:10px;padding:2px 8px">${mockMode ? 'MOCK' : 'LIVE'}</span></div>
+          </div>`;
+        panel.innerHTML = html;
+
+        // Mock mode banner
+        const banner = $("mockBanner");
+        if (banner) {
+          if (mockMode) {
+            banner.style.display = "block";
+          } else {
+            banner.style.display = "none";
+          }
+        }
+      }
+
+      async function boot() {
+        $("runnerUrlInput").value = defaultRunnerUrl();
+        STATE.runnerBase = $("runnerUrlInput").value.trim();
+        STATE.services = deriveDefaultServices(STATE.runnerBase);
+        wireQuickRunnerUrls();
+        bindEvents();
+
+        appendLog("UI initialized");
+        await guarded(connectAndRefresh, "initial connect");
+      }
+
+      // We wait to call boot() until the demo is launched, so we don't boot immediately
+      // boot();
+    </script>
+    <div
+      class="modal-overlay"
+      id="verdictModal"
+      onclick="if (event.target === this) this.classList.remove('open');"
+    >
+      <div class="modal-content glass">
+        <button
+          class="modal-close"
+          onclick="
+            document.getElementById('verdictModal').classList.remove('open')
+          "
+        >
+          ✕
+        </button>
+        <div class="opinion-parsed" id="modalBody"></div>
+      </div>
+    </div>
+  </body>
+</html>

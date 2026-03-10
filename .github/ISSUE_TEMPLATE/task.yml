@@ -1,0 +1,59 @@
+name: Task
+description: Create or refine a task that fits the repo's task-driven operating system.
+title: "[TASK] <task-id> <summary>"
+labels:
+  - task
+body:
+  - type: input
+    id: task_id
+    attributes:
+      label: Task ID
+      description: Use the existing ID from `Verdict_Comprehensive_Task_Division.md`, or propose a new one if the matrix is being expanded.
+      placeholder: FND-02
+    validations:
+      required: true
+  - type: dropdown
+    id: lane
+    attributes:
+      label: Owner lane
+      options:
+        - protocol_contracts
+        - payments_evidence
+        - judge_reputation
+        - console_ops
+    validations:
+      required: true
+  - type: input
+    id: module
+    attributes:
+      label: Module or file scope
+      placeholder: apps/judge_service/, contracts/, verdict-frontend/
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: Task
+      description: State the change in one or two sentences.
+    validations:
+      required: true
+  - type: input
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: List task IDs this work depends on.
+      placeholder: PRT-04, PAY-01
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How will the repo know this task is done?
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification plan
+      description: Commands, tests, or manual checks expected.
+    validations:
+      required: true

@@ -94,10 +94,20 @@ class VerdictPackage(BaseModel):
     schemaVersion: Literal["1.0.0"] = "1.0.0"
     verdictId: str
     disputeId: str
+    transactionId: str | None = None
+    disputeTxHash: str | None = None
     chainId: int = Field(ge=1)
     contractAddress: str
     agreementId: str
     clauseHash: str
+    plaintiff: str
+    defendant: str
+    plaintiffEvidence: str
+    defendantEvidence: str
+    stake: str
+    defendantStake: str
+    tier: int = Field(ge=0)
+    courtTier: str
     transfers: list[Transfer]
     judgeFee: str
     reasonCodes: list[str]
@@ -107,3 +117,10 @@ class VerdictPackage(BaseModel):
     flags: list[str]
     verdictHash: str
     judgeSignature: str
+    judgeAddress: str
+    judgeSignerBackend: str
+    winner: str
+    loser: str
+    fullOpinion: str
+    processedAtMs: int = Field(ge=0)
+    submitTxHash: str | None = None

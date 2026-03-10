@@ -20,13 +20,14 @@ def create_app() -> FastAPI:
     try:
         mode = install_x402(app)
     except X402IntegrationError as exc:
+        error_message = str(exc)
         # Keep service bootable, but expose explicit status and fail protected route requests in strict mode.
         @app.middleware("http")
         async def strict_gate(request, call_next):
             if request.url.path.startswith("/api/"):
                 from fastapi.responses import JSONResponse
 
-                return JSONResponse(status_code=500, content={"error": str(exc)})
+                return JSONResponse(status_code=500, content={"error": error_message})
             return await call_next(request)
 
     app.include_router(router)

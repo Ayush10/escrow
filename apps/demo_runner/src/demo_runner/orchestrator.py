@@ -466,6 +466,51 @@ class DemoRunManager:
         )
         return result
 
+    async def _process_dispute_for_demo(self, run: DemoRun, dispute_id: str | None) -> dict[str, Any]:
+        import httpx
+
+        step_id = "judge_process"
+        await self._publish(
+            run,
+            {
+                "type": "step.started",
+                "stepId": step_id,
+                "label": "Process dispute verdict",
+                "status": "running",
+                "message": "Requesting deterministic judge processing",
+            },
+        )
+
+        endpoint = (
+            f"http://127.0.0.1:4002/disputes/{dispute_id}/process"
+            if dispute_id
+            else "http://127.0.0.1:4002/disputes/process-latest"
+        )
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(endpoint)
+            response.raise_for_status()
+            payload = response.json()
+
+        verdict = payload.get("verdict", {})
+        await self._publish(
+            run,
+            {
+                "type": "step.updated",
+                "stepId": step_id,
+                "label": "Process dispute verdict",
+                "status": "done",
+                "message": "Verdict package stored in judge service",
+                "artifacts": {
+                    "disputeId": verdict.get("disputeId") or dispute_id,
+                    "cached": bool(payload.get("cached")),
+                    "status": verdict.get("status"),
+                    "winner": verdict.get("winner"),
+                    "submitTxHash": verdict.get("submitTxHash"),
+                },
+            },
+        )
+        return verdict
+
     async def _execute(self, run_id: str, agreement_window_sec: int = 30) -> None:
         run = self._runs[run_id]
         happy_flow, dispute_flow = self._get_flow_functions()
@@ -507,9 +552,18 @@ class DemoRunManager:
                 agreement_id = result.get("agreementId")
                 if agreement_id:
                     run.agreement_ids.append(agreement_id)
-                dispute_tx = result.get("disputeTx") or result.get("txHash")
-                if dispute_tx:
-                    run.dispute_ids.append(str(dispute_tx))
+                dispute_ref = result.get("disputeId") or result.get("disputeTx") or result.get("txHash")
+                if dispute_ref:
+                    run.dispute_ids.append(str(dispute_ref))
+                if os.environ.get("ESCROW_DRY_RUN", "0") == "1":
+                    verdict = await self._process_dispute_for_demo(
+                        run,
+                        str(result["disputeId"]) if result.get("disputeId") else None,
+                    )
+                    run.artifacts["verdict"] = verdict
+                    verdict_dispute_id = verdict.get("disputeId")
+                    if verdict_dispute_id and str(verdict_dispute_id) not in run.dispute_ids:
+                        run.dispute_ids.append(str(verdict_dispute_id))
 
             run.status = "complete"
             run.artifacts["summary"] = {

@@ -411,6 +411,11 @@ def run_dispute_flow(
         "depositTx": deposit_tx.tx_hash,
         "bondTx": bond_tx.tx_hash,
         "disputeTx": dispute_tx.tx_hash,
+        "disputeId": (
+            str(dispute_tx.extra.get("disputeId"))
+            if dispute_tx.extra and dispute_tx.extra.get("disputeId") is not None
+            else None
+        ),
         "receiptIds": [req_receipt["receiptId"], res_receipt["receiptId"], sla_receipt["receiptId"]],
         "anchor": anchor,
         "x402PaymentReference": response.payment_reference,

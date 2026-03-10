@@ -138,6 +138,20 @@ class EvidenceStorage:
             return None
         return json.loads(row["payload_json"])
 
+    def get_receipt_by_sequence(self, agreement_id: str, sequence: int) -> dict[str, Any] | None:
+        row = self.conn.execute(
+            """
+            SELECT payload_json
+            FROM receipts
+            WHERE agreement_id = ? AND sequence = ?
+            LIMIT 1
+            """,
+            (agreement_id, int(sequence)),
+        ).fetchone()
+        if not row:
+            return None
+        return json.loads(row["payload_json"])
+
     def list_receipts(
         self, agreement_id: str | None = None, actor_id: str | None = None
     ) -> list[dict[str, Any]]:

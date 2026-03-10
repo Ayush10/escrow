@@ -41,15 +41,19 @@ class EscrowClient:
         self.private_key = private_key
         self.account = self.w3.eth.account.from_key(private_key) if private_key else None
         self.dry_run = dry_run
-        self.connected = self.w3.is_connected()
 
         path = Path(abi_path) if abi_path else DEFAULT_ABI_PATH
         abi = json.loads(path.read_text(encoding="utf-8"))
         self.abi = abi
         self.contract = self.w3.eth.contract(address=self.contract_address, abi=abi)
-        code = self.w3.eth.get_code(self.contract_address)
-        self.contract_code_size = len(code)
-        self.contract_has_code = self.contract_code_size > 0
+        self.connected = False
+        self.contract_code_size = 0
+        self.contract_has_code = False
+        if not self.dry_run:
+            self.connected = self.w3.is_connected()
+            code = self.w3.eth.get_code(self.contract_address)
+            self.contract_code_size = len(code)
+            self.contract_has_code = self.contract_code_size > 0
 
         self.fn_index = {f["name"]: f for f in abi if f.get("type") == "function"}
         self.event_index = {e["name"]: e for e in abi if e.get("type") == "event"}
@@ -83,6 +87,20 @@ class EscrowClient:
             CREATE TABLE IF NOT EXISTS disputes (
               dispute_id INTEGER PRIMARY KEY,
               dispute_json TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS evidence_commits (
+              agreement_id TEXT PRIMARY KEY,
+              root_hash TEXT NOT NULL,
+              tx_hash TEXT NOT NULL,
+              block_number INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS dispute_requests (
+              request_key TEXT PRIMARY KEY,
+              dispute_id INTEGER NOT NULL,
+              tx_hash TEXT NOT NULL,
+              block_number INTEGER NOT NULL
             );
             """
         )
@@ -184,6 +202,68 @@ class EscrowClient:
             return None
         return json.loads(row["dispute_json"])
 
+    def _mock_get_evidence_commit(self, agreement_id: str) -> sqlite3.Row | None:
+        if self._mock_conn is None:
+            return None
+        return self._mock_conn.execute(
+            """
+            SELECT agreement_id, root_hash, tx_hash, block_number
+            FROM evidence_commits
+            WHERE agreement_id = ?
+            """,
+            (agreement_id,),
+        ).fetchone()
+
+    def _mock_store_evidence_commit(
+        self,
+        agreement_id: str,
+        *,
+        root_hash: str,
+        tx_hash: str,
+        block_number: int,
+    ) -> None:
+        if self._mock_conn is None:
+            raise RuntimeError("mock db is not initialized")
+        self._mock_conn.execute(
+            """
+            INSERT OR REPLACE INTO evidence_commits (agreement_id, root_hash, tx_hash, block_number)
+            VALUES (?, ?, ?, ?)
+            """,
+            (agreement_id, root_hash, tx_hash, int(block_number)),
+        )
+        self._mock_conn.commit()
+
+    def _mock_get_dispute_request(self, request_key: str) -> sqlite3.Row | None:
+        if self._mock_conn is None:
+            return None
+        return self._mock_conn.execute(
+            """
+            SELECT request_key, dispute_id, tx_hash, block_number
+            FROM dispute_requests
+            WHERE request_key = ?
+            """,
+            (request_key,),
+        ).fetchone()
+
+    def _mock_store_dispute_request(
+        self,
+        request_key: str,
+        *,
+        dispute_id: int,
+        tx_hash: str,
+        block_number: int,
+    ) -> None:
+        if self._mock_conn is None:
+            raise RuntimeError("mock db is not initialized")
+        self._mock_conn.execute(
+            """
+            INSERT OR REPLACE INTO dispute_requests (request_key, dispute_id, tx_hash, block_number)
+            VALUES (?, ?, ?, ?)
+            """,
+            (request_key, int(dispute_id), tx_hash, int(block_number)),
+        )
+        self._mock_conn.commit()
+
     def capabilities(self) -> dict[str, bool]:
         return {
             "rpcConnected": self.connected,
@@ -261,6 +341,17 @@ class EscrowClient:
 
     def commit_evidence_hash(self, agreement_id: str, root_hash: str) -> EscrowTxResult:
         if self.dry_run:
+            existing = self._mock_get_evidence_commit(agreement_id)
+            if existing is not None:
+                if existing["root_hash"] != root_hash:
+                    raise ValueError("evidence already committed for agreement with different root_hash")
+                return EscrowTxResult(
+                    tx_hash=existing["tx_hash"],
+                    block_number=int(existing["block_number"]),
+                    status=1,
+                    extra={"idempotent": True},
+                )
+
             tx_hash = self._mock_tx_hash("commit-evidence")
             block = self._mock_next_counter("block", start=self._mock_block_start())
             agent = self.account.address if self.account else ZERO_ADDRESS
@@ -271,6 +362,12 @@ class EscrowClient:
                     "rootHash": root_hash,
                     "agent": to_checksum_address(agent),
                 },
+                tx_hash=tx_hash,
+                block_number=block,
+            )
+            self._mock_store_evidence_commit(
+                agreement_id,
+                root_hash=root_hash,
                 tx_hash=tx_hash,
                 block_number=block,
             )
@@ -306,6 +403,26 @@ class EscrowClient:
             )
             plaintiff = to_checksum_address(self.account.address) if self.account else ZERO_ADDRESS
             defendant_addr = to_checksum_address(defendant) if defendant else ZERO_ADDRESS
+            request_key = json.dumps(
+                {
+                    "agreementId": agreement_id,
+                    "txId": normalized_tx_id,
+                    "plaintiff": plaintiff,
+                    "defendant": defendant_addr,
+                    "stake": normalized_stake,
+                    "plaintiffEvidence": evidence,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            existing = self._mock_get_dispute_request(request_key)
+            if existing is not None:
+                return EscrowTxResult(
+                    tx_hash=existing["tx_hash"],
+                    block_number=int(existing["block_number"]),
+                    status=1,
+                    extra={"disputeId": int(existing["dispute_id"]), "idempotent": True},
+                )
             dispute_id = self._mock_next_counter("dispute_id", start=1)
             judge_fee = max(normalized_stake // 200, 0)
             dispute_row = [
@@ -331,6 +448,12 @@ class EscrowClient:
                     "plaintiff": plaintiff,
                     "defendant": defendant_addr,
                 },
+                tx_hash=tx_hash,
+                block_number=block,
+            )
+            self._mock_store_dispute_request(
+                request_key,
+                dispute_id=dispute_id,
                 tx_hash=tx_hash,
                 block_number=block,
             )
@@ -438,7 +561,10 @@ class EscrowClient:
     def judge_address(self) -> str | None:
         if "judge" not in self.fn_index:
             return None
-        return to_checksum_address(self.contract.functions.judge().call())
+        try:
+            return to_checksum_address(self.contract.functions.judge().call())
+        except Exception:
+            return None
 
     def poll_events(self, event_name: str, from_block: int, to_block: int | str = "latest") -> list[dict[str, Any]]:
         if self.dry_run:

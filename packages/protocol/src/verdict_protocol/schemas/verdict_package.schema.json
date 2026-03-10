@@ -11,6 +11,14 @@
     "contractAddress",
     "agreementId",
     "clauseHash",
+    "plaintiff",
+    "defendant",
+    "plaintiffEvidence",
+    "defendantEvidence",
+    "stake",
+    "defendantStake",
+    "tier",
+    "courtTier",
     "transfers",
     "judgeFee",
     "reasonCodes",
@@ -19,16 +27,32 @@
     "confidence",
     "flags",
     "verdictHash",
-    "judgeSignature"
+    "judgeSignature",
+    "judgeAddress",
+    "judgeSignerBackend",
+    "winner",
+    "loser",
+    "fullOpinion",
+    "processedAtMs"
   ],
   "properties": {
     "schemaVersion": { "type": "string", "const": "1.0.0" },
     "verdictId": { "type": "string", "minLength": 1 },
     "disputeId": { "type": "string", "minLength": 1 },
+    "transactionId": { "type": ["string", "null"] },
+    "disputeTxHash": { "type": ["string", "null"], "pattern": "^(0x[a-fA-F0-9]{64})?$" },
     "chainId": { "type": "integer", "minimum": 1 },
     "contractAddress": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
     "agreementId": { "type": "string", "minLength": 1 },
     "clauseHash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+    "plaintiff": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "defendant": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "plaintiffEvidence": { "type": "string", "pattern": "^0x[a-fA-F0-9]{1,64}$" },
+    "defendantEvidence": { "type": "string", "pattern": "^0x[a-fA-F0-9]{1,64}$" },
+    "stake": { "type": "string", "pattern": "^[0-9]+$" },
+    "defendantStake": { "type": "string", "pattern": "^[0-9]+$" },
+    "tier": { "type": "integer", "minimum": 0 },
+    "courtTier": { "type": "string", "minLength": 1 },
     "transfers": {
       "type": "array",
       "items": {
@@ -49,6 +73,13 @@
     "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
     "flags": { "type": "array", "items": { "type": "string" } },
     "verdictHash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
-    "judgeSignature": { "type": "string", "pattern": "^0x[a-fA-F0-9]+$" }
+    "judgeSignature": { "type": "string", "pattern": "^0x[a-fA-F0-9]+$" },
+    "judgeAddress": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "judgeSignerBackend": { "type": "string", "minLength": 1 },
+    "winner": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "loser": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "fullOpinion": { "type": "string" },
+    "processedAtMs": { "type": "integer", "minimum": 0 },
+    "submitTxHash": { "type": ["string", "null"], "pattern": "^(0x[a-fA-F0-9]{64})?$" }
   }
 }
