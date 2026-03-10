@@ -130,10 +130,11 @@ uv sync
 ## Run Services Individually
 
 ```bash
-uv run --package evidence-service evidence-service
-uv run --package provider-api provider-api
-uv run --package judge-service judge-service
-uv run --package reputation-service reputation-service
+bash ./scripts/run_module.sh evidence_service.server
+bash ./scripts/run_module.sh provider_api.server
+bash ./scripts/run_module.sh judge_service.server
+bash ./scripts/run_module.sh reputation_service.api
+bash ./scripts/run_module.sh demo_runner.server
 ```
 
 Optional pnpm wrappers:
@@ -143,6 +144,7 @@ pnpm dev:evidence
 pnpm dev:provider
 pnpm dev:judge
 pnpm dev:reputation
+pnpm dev:runner
 ```
 
 Push a transfer into GOAT dashboard `Agent ↔ Agent Payments`:
@@ -163,16 +165,23 @@ first (requires a valid Cloudflare Turnstile token).
 ## Run Demo
 
 ```bash
-uv run demo
-# or
+bash ./scripts/demo.sh
 pnpm demo
 ```
 
-The demo runs:
+Useful modes:
+
+```bash
+pnpm demo:console
+pnpm demo:happy
+pnpm demo:dispute
+```
+
+The demo bootstrap starts the local services, opens the console on `:4173`, and runs:
 
 1. Happy path flow
 2. Dispute path flow
-3. Summary output with tx hashes, receipt IDs, anchor root, and reputation standings
+3. Summary output with tx hashes, receipt IDs, anchor root, submitted verdict, and reputation standings
 
 ## Run Tests
 
