@@ -320,13 +320,38 @@ async def auto_judge_poll():
 
 
 # --- Serve frontend ---
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "judge-frontend")
+def _resolve_frontend_dir() -> Path | None:
+    repo_root = Path(__file__).resolve().parent.parent
+    for candidate_name in ("console", "judge-frontend"):
+        candidate = repo_root / candidate_name
+        if (candidate / "index.html").exists():
+            return candidate
+    return None
+
+
+FRONTEND_DIR = _resolve_frontend_dir()
+
+
+@app.get("/assets/{asset_path:path}")
+async def serve_frontend_asset(asset_path: str):
+    if FRONTEND_DIR is None:
+        raise HTTPException(404, "frontend not found")
+
+    assets_root = (FRONTEND_DIR / "assets").resolve()
+    target = (assets_root / asset_path).resolve()
+    if assets_root != target and assets_root not in target.parents:
+        raise HTTPException(404, "asset not found")
+    if not target.exists() or not target.is_file():
+        raise HTTPException(404, "asset not found")
+    return FileResponse(target)
+
 
 @app.get("/")
 async def serve_frontend():
-    index = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.exists(index):
-        return FileResponse(index)
+    if FRONTEND_DIR is not None:
+        index = FRONTEND_DIR / "index.html"
+        if index.exists():
+            return FileResponse(index)
     return {"message": "Agent Court API", "docs": "/docs"}
 
 

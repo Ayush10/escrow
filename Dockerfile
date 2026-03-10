@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt python-dotenv httpx
 
 # Copy server + frontend
 COPY server/ /app/server/
+COPY console/ /app/console/
 COPY judge-frontend/ /app/judge-frontend/
 
 WORKDIR /app/server

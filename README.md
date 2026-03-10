@@ -31,8 +31,10 @@ flowchart LR
 - `apps/judge_service`: dispute watcher, verification, deterministic/LLM verdicting, on-chain ruling.
 - `apps/reputation_service`: event watcher + reputation API.
 - `apps/demo_runner`: end-to-end orchestrator.
+- `console`: canonical operator dashboard and demo UI.
 - `contracts`: existing L1 contract, ABI, and optional deploy tooling.
-- `demo/` and `guardian/` (legacy from early python-backend): optional manual demo scripts and proxy tooling retained for reference/backward compatibility; the authoritative runtime for hackathon validation remains the `apps/*` services.
+- `judge-frontend/`: legacy compatibility frontend host retained for backward compatibility.
+- `demo/` and `guardian/` (legacy from early python-backend): optional manual demo scripts and proxy tooling retained for reference/backward compatibility; the authoritative runtime for hackathon validation remains the `apps/*` services plus `console/`.
 
 ## Remote Integration (Non-Breaking)
 
@@ -46,6 +48,7 @@ Recent `origin/main` updates were integrated additively without replacing the cu
   - `verdict_api.py` (shim to judge service verdict endpoints)
   - `court_server.py` (frontend host + API proxy adapter)
   - `court_watcher.py` (compatibility watcher)
+- Added `console/` as the canonical static dashboard path used by the demo bootstrap and pnpm frontend scripts.
 - Added `agent_demo.py` as a safe runner-driven demo script (no embedded keys).
 - Added `KNOWN_ISSUES.md` with current limitations and priorities.
 

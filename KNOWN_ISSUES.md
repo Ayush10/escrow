@@ -41,7 +41,7 @@ What remains limited or non-production:
 
 9. **Legacy branches contain experimental scripts.**
    Some legacy scripts were useful for rapid experiments but are not the canonical runtime path.
-   `apps/*` services and `judge-frontend/index.html` are the authoritative flow.
+   `apps/*` services and `console/index.html` are the authoritative flow.
 
 10. **Test coverage is focused, not exhaustive.**
    Core protocol tests pass, but full multi-service/network integration coverage still needs expansion.
