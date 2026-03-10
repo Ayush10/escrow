@@ -163,6 +163,7 @@ def export_agreement(agreement_id: str, state: ServerState = Depends(get_state))
             "clauseHashValid": clause.get("clauseHash") == compute_clause_hash(clause) if clause.get("clauseHash") else None,
             "chainValid": chain_ok,
             "rootAnchored": anchor is not None,
+            "rootCommittedOnChain": bool(anchor and anchor.get("txHash")),
             "rootMatched": root_match,
         },
     }
@@ -288,6 +289,7 @@ def anchor_receipts(payload: AnchorRequest, state: ServerState = Depends(get_sta
                 "agreementId": payload.agreementId,
                 "rootHash": existing_anchor["rootHash"],
                 "txHash": existing_anchor["txHash"],
+                "anchorMode": existing_anchor.get("anchorMode", "onchain"),
                 "receiptIds": existing_anchor["receiptIds"],
                 "idempotent": True,
             }
@@ -301,13 +303,22 @@ def anchor_receipts(payload: AnchorRequest, state: ServerState = Depends(get_sta
             },
         )
 
-    tx = state.escrow.commit_evidence_hash(payload.agreementId, root_hash)
-    state.storage.store_anchor(payload.agreementId, root_hash, tx.tx_hash, receipt_ids)
+    capabilities = state.escrow.capabilities()
+    sanity = state.escrow.contract_sanity()
+    tx_hash: str | None = None
+    anchor_mode = "onchain"
+    if sanity.get("deploymentMode") == "split" and not capabilities.get("commitEvidenceHash", False):
+        anchor_mode = "offchain_bundle"
+    else:
+        tx = state.escrow.commit_evidence_hash(payload.agreementId, root_hash)
+        tx_hash = tx.tx_hash
+    state.storage.store_anchor(payload.agreementId, root_hash, tx_hash, receipt_ids)
 
     return {
         "agreementId": payload.agreementId,
         "rootHash": root_hash,
-        "txHash": tx.tx_hash,
+        "txHash": tx_hash,
+        "anchorMode": anchor_mode,
         "receiptIds": receipt_ids,
     }
 

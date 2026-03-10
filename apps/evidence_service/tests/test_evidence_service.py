@@ -243,3 +243,52 @@ def test_anchor_post_is_idempotent_and_rejects_conflicting_reanchor() -> None:
         conflict = client.post("/anchor", json={"agreementId": agreement_id})
         assert conflict.status_code == 409
         assert conflict.json()["detail"]["error"] == "anchor_conflict"
+
+
+def test_anchor_falls_back_to_offchain_bundle_in_split_mode() -> None:
+    class FakeSplitEscrow:
+        def capabilities(self) -> dict[str, bool]:
+            return {"commitEvidenceHash": False}
+
+        def contract_sanity(self) -> dict[str, object]:
+            return {"deploymentMode": "split"}
+
+    with tempfile.TemporaryDirectory() as td:
+        os.environ["SQLITE_PATH"] = f"{td}/ev.db"
+        os.environ["ESCROW_DRY_RUN"] = "1"
+        os.environ["ESCROW_CONTRACT_ADDRESS"] = "0x" + "1" * 40
+
+        from evidence_service.server import create_app
+
+        app = create_app()
+        app.state.server_state.escrow = FakeSplitEscrow()
+        client = TestClient(app)
+
+        account_a = Account.create()
+        account_b = Account.create()
+        agreement_id = str(uuid.uuid4())
+        clause = _make_clause(agreement_id)
+        assert client.post("/clauses", json=clause).status_code == 200
+
+        receipt = _make_receipt(
+            account_a=account_a,
+            account_b=account_b,
+            agreement_id=agreement_id,
+            clause_hash=clause["clauseHash"],
+            sequence=0,
+            payload={"x": 1},
+        )
+        assert client.post("/receipts", json=receipt).status_code == 200
+
+        anchor_resp = client.post("/anchor", json={"agreementId": agreement_id})
+        assert anchor_resp.status_code == 200
+        payload = anchor_resp.json()
+        assert payload["anchorMode"] == "offchain_bundle"
+        assert payload["txHash"] is None
+
+        export_resp = client.get(f"/agreements/{agreement_id}/export")
+        assert export_resp.status_code == 200
+        export_payload = export_resp.json()
+        assert export_payload["anchor"]["anchorMode"] == "offchain_bundle"
+        assert export_payload["integrity"]["rootAnchored"] is True
+        assert export_payload["integrity"]["rootCommittedOnChain"] is False

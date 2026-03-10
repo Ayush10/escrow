@@ -428,7 +428,10 @@ async def _handle_dispute(state: JudgeState, event: DisputeEvent) -> None:
     status = "manual_review"
     review_reason = None
     tx_hash = None
-    expected_judge = state.escrow.judge_address()
+    if hasattr(state.escrow, "assigned_judge"):
+        expected_judge = state.escrow.assigned_judge(event.dispute_id)
+    else:
+        expected_judge = state.escrow.judge_address()
     verdict, package_errors = finalize_verdict_package(
         verdict,
         state.signer,

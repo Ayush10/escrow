@@ -182,7 +182,13 @@ class EvidenceStorage:
             return None
         return json.loads(row["payload_json"])
 
-    def store_anchor(self, agreement_id: str, root_hash: str, tx_hash: str, receipt_ids: list[str]) -> None:
+    def store_anchor(
+        self,
+        agreement_id: str,
+        root_hash: str,
+        tx_hash: str | None,
+        receipt_ids: list[str],
+    ) -> None:
         self.conn.execute(
             """
             INSERT OR REPLACE INTO anchors
@@ -194,7 +200,7 @@ class EvidenceStorage:
                 agreement_id,
                 agreement_id,
                 root_hash,
-                tx_hash,
+                tx_hash or "",
                 json.dumps(receipt_ids, separators=(",", ":")),
             ),
         )
@@ -210,7 +216,8 @@ class EvidenceStorage:
         return {
             "agreementId": agreement_id,
             "rootHash": row["root_hash"],
-            "txHash": row["tx_hash"],
+            "txHash": row["tx_hash"] or None,
+            "anchorMode": "onchain" if row["tx_hash"] else "offchain_bundle",
             "receiptIds": json.loads(row["receipt_ids_json"]),
         }
 
@@ -224,6 +231,7 @@ class EvidenceStorage:
         return {
             "agreementId": row["agreement_id"],
             "rootHash": root_hash,
-            "txHash": row["tx_hash"],
+            "txHash": row["tx_hash"] or None,
+            "anchorMode": "onchain" if row["tx_hash"] else "offchain_bundle",
             "receiptIds": json.loads(row["receipt_ids_json"]),
         }

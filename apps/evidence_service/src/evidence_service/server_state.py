@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from fastapi import Request
 from verdict_protocol import EscrowClient
 
 from .storage import EvidenceStorage
@@ -13,10 +14,8 @@ class ServerState:
     escrow: EscrowClient
 
 
-def get_state() -> ServerState:
-    from .server import app
-
-    state = getattr(app.state, "server_state", None)
+def get_state(request: Request) -> ServerState:
+    state = getattr(request.app.state, "server_state", None)
     if state is None:
         raise RuntimeError("server state not initialized")
     return state

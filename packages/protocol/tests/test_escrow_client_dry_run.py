@@ -1,5 +1,6 @@
 import os
 import tempfile
+from unittest.mock import patch
 
 import pytest
 
@@ -113,3 +114,253 @@ def test_escrow_client_dry_run_is_idempotent_for_anchor_and_dispute() -> None:
         evidence_events = client.poll_events("EvidenceCommitted", from_block=0)
         assert len(dispute_events) == 1
         assert len(evidence_events) == 1
+
+
+class _FakeCall:
+    def __init__(self, value):
+        self._value = value
+
+    def call(self):
+        return self._value
+
+
+class _FakeEventFilter:
+    def __init__(self, entries):
+        self._entries = entries
+
+    def get_all_entries(self):
+        return list(self._entries)
+
+
+class _FakeEvent:
+    def __init__(self, entries):
+        self._entries = entries
+
+    def create_filter(self, from_block=0, to_block="latest"):
+        return _FakeEventFilter(self._entries)
+
+
+class _FakeCourtFunctions:
+    def __init__(self, *, plaintiff: str, defendant: str, judge: str, winner: str):
+        self._plaintiff = plaintiff
+        self._defendant = defendant
+        self._judge = judge
+        self._winner = winner
+
+    def contracts(self, dispute_id: int):
+        return _FakeCall(
+            (
+                self._defendant,  # principal
+                self._plaintiff,  # client
+                self._judge,
+                100,
+                15,
+                bytes.fromhex("11" * 32),
+                self._plaintiff,
+                123456,
+                self._winner,
+                4,
+                115,
+                115,
+                123999,
+                124000,
+                0,
+            )
+        )
+
+    def disputes(self, dispute_id: int):
+        return _FakeCall(
+            (
+                self._plaintiff,
+                self._defendant,
+                self._judge,
+                self._defendant,
+                123500,
+                123700,
+                bytes.fromhex("22" * 32),
+            )
+        )
+
+    def evidenceCount(self, dispute_id: int):
+        return _FakeCall(2)
+
+    def evidenceSubmitters(self, dispute_id: int, idx: int):
+        return _FakeCall(self._plaintiff if idx == 0 else self._defendant)
+
+    def evidenceHashes(self, dispute_id: int, idx: int):
+        return _FakeCall(bytes.fromhex(("aa" if idx == 0 else "bb") * 32))
+
+
+class _FakeCourtEvents:
+    def __init__(self, *, plaintiff: str, winner: str):
+        self.DisputeFiled = _FakeEvent(
+            [{"args": {"id": 7, "plaintiff": plaintiff}, "blockNumber": 12, "transactionHash": "0xabc"}]
+        )
+        self.Ruled = _FakeEvent(
+            [{"args": {"id": 7, "winner": winner, "judge": "0x" + "4" * 40}, "blockNumber": 15, "transactionHash": "0xdef"}]
+        )
+
+
+class _FakeCourtContract:
+    def __init__(self, *, plaintiff: str, defendant: str, judge: str, winner: str):
+        self.functions = _FakeCourtFunctions(
+            plaintiff=plaintiff,
+            defendant=defendant,
+            judge=judge,
+            winner=winner,
+        )
+        self.events = _FakeCourtEvents(plaintiff=plaintiff, winner=winner)
+
+
+class _FakeRegistryFunctions:
+    def __init__(self, judge: str):
+        self._judge = judge
+
+    def judges(self, judge: str):
+        return _FakeCall(("0x" + "0" * 40, 5, 50, 3, True, True, "https://judge.example", 300))
+
+
+class _FakeRegistryContract:
+    def __init__(self, judge: str):
+        self.functions = _FakeRegistryFunctions(judge)
+
+
+def test_escrow_client_split_mode_reports_capabilities_and_synthesizes_disputes() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        env = {
+            "ESCROW_MOCK_DB_PATH": f"{td}/escrow_mock.db",
+            "ESCROW_CONTRACT_MODE": "split",
+            "ESCROW_COURT_ADDRESS": "0x" + "1" * 40,
+            "ESCROW_VAULT_ADDRESS": "0x" + "2" * 40,
+            "ESCROW_JUDGE_REGISTRY_ADDRESS": "0x" + "3" * 40,
+        }
+        with patch.dict(os.environ, env, clear=False):
+            client = EscrowClient(
+                rpc_url="https://rpc.testnet3.goat.network",
+                chain_id=48816,
+                contract_address="0x" + "1" * 40,
+                private_key="0x" + "1" * 64,
+                dry_run=True,
+            )
+
+            caps = client.capabilities()
+            sanity = client.contract_sanity()
+
+            assert caps["splitContractSet"] is True
+            assert caps["commitEvidenceHash"] is False
+            assert sanity["deploymentMode"] == "split"
+            assert sanity["courtAddress"] == "0x" + "1" * 40
+            assert sanity["vaultAddress"] == "0x" + "2" * 40
+            assert sanity["judgeRegistryAddress"] == "0x" + "3" * 40
+
+
+def test_escrow_client_split_mode_mock_contract_lifecycle_uses_court_id() -> None:
+    provider_key = "0x" + "1" * 64
+    consumer_key = "0x" + "2" * 64
+    judge = "0x" + "4" * 40
+
+    with tempfile.TemporaryDirectory() as td:
+        env = {
+            "ESCROW_MOCK_DB_PATH": f"{td}/escrow_mock.db",
+            "ESCROW_CONTRACT_MODE": "split",
+            "ESCROW_COURT_ADDRESS": "0x" + "1" * 40,
+            "ESCROW_VAULT_ADDRESS": "0x" + "2" * 40,
+            "ESCROW_JUDGE_REGISTRY_ADDRESS": "0x" + "3" * 40,
+        }
+        with patch.dict(os.environ, env, clear=False):
+            provider_client = EscrowClient(
+                rpc_url="https://rpc.testnet3.goat.network",
+                chain_id=48816,
+                contract_address="0x" + "1" * 40,
+                private_key=provider_key,
+                dry_run=True,
+            )
+            consumer_client = EscrowClient(
+                rpc_url="https://rpc.testnet3.goat.network",
+                chain_id=48816,
+                contract_address="0x" + "1" * 40,
+                private_key=consumer_key,
+                dry_run=True,
+            )
+            provider = provider_client.account.address
+            consumer = consumer_client.account.address
+
+            created = provider_client.create_agreement(
+                "agreement-split-1",
+                principal=provider,
+                client=consumer,
+                judge=judge,
+                consideration=100,
+                terms_hash="0x" + "a" * 64,
+            )
+            assert created.extra == {"contractId": 0}
+
+            accepted = consumer_client.accept_agreement(0)
+            assert accepted.extra == {"contractId": 0}
+
+            dispute = consumer_client.file_dispute(
+                "agreement-split-1",
+                tx_id=0,
+                defendant=provider,
+                stake=100,
+                plaintiff_evidence="0x" + "b" * 64,
+            )
+            assert dispute.extra == {"disputeId": 0}
+
+            fetched = consumer_client.get_dispute(0)
+            assert fetched is not None
+            assert fetched[0] == 0
+            assert fetched[1] == consumer
+            assert fetched[2] == provider
+
+
+def test_escrow_client_split_mode_synthesizes_events_and_disputes() -> None:
+    plaintiff = "0x" + "1" * 40
+    defendant = "0x" + "2" * 40
+    judge = "0x" + "4" * 40
+    winner = plaintiff
+
+    env = {
+        "ESCROW_CONTRACT_MODE": "split",
+        "ESCROW_COURT_ADDRESS": "0x" + "1" * 40,
+        "ESCROW_VAULT_ADDRESS": "0x" + "2" * 40,
+        "ESCROW_JUDGE_REGISTRY_ADDRESS": "0x" + "3" * 40,
+    }
+    with patch.dict(os.environ, env, clear=False):
+        client = EscrowClient(
+            rpc_url="https://rpc.testnet3.goat.network",
+            chain_id=48816,
+            contract_address="0x" + "1" * 40,
+            private_key=None,
+            dry_run=True,
+        )
+
+    client.dry_run = False
+    client.contract = _FakeCourtContract(
+        plaintiff=plaintiff,
+        defendant=defendant,
+        judge=judge,
+        winner=winner,
+    )
+    client.registry_contract = _FakeRegistryContract(judge)
+
+    dispute = client.get_dispute(7)
+    assert dispute is not None
+    assert dispute[0] == 7
+    assert dispute[1] == plaintiff
+    assert dispute[2] == defendant
+    assert dispute[4] == 5
+    assert dispute[5] == 0
+    assert dispute[6] == "0x" + "aa" * 32
+    assert dispute[7] == "0x" + "bb" * 32
+    assert dispute[8] is True
+    assert dispute[9] == plaintiff
+    assert client.assigned_judge(7) == judge
+
+    dispute_events = client.poll_events("DisputeFiled", from_block=0)
+    ruling_events = client.poll_events("RulingSubmitted", from_block=0)
+
+    assert dispute_events[0]["args"]["disputeId"] == 7
+    assert dispute_events[0]["args"]["defendant"] == defendant
+    assert ruling_events[0]["args"]["winner"] == plaintiff
+    assert ruling_events[0]["args"]["loser"] == defendant

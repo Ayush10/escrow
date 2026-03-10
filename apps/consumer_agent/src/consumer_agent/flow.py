@@ -54,6 +54,62 @@ def _step_done(
     _emit(emit, payload)
 
 
+def _maybe_open_split_contract(
+    *,
+    emit: ProgressCallback | None,
+    rc: ReceiptClient,
+    agreement_id: str,
+    clause_hash: str,
+    provider_actor,
+    consumer_actor,
+    provider_escrow,
+    consumer_escrow,
+    consideration: int,
+) -> dict[str, Any] | None:
+    if provider_escrow.deployment_mode != "split":
+        return None
+
+    judge_key = os.environ.get("JUDGE_PRIVATE_KEY", "")
+    if not judge_key:
+        raise RuntimeError("JUDGE_PRIVATE_KEY is required in split contract mode")
+    judge_actor = rc.actor_from_key(judge_key)
+
+    _step_start(emit, "open_contract", "Open Court contract", "Proposing split court agreement")
+    propose_tx = provider_escrow.create_agreement(
+        agreement_id,
+        principal=provider_actor.address,
+        client=consumer_actor.address,
+        judge=judge_actor.address,
+        consideration=consideration,
+        terms_hash=clause_hash,
+    )
+    contract_id = int((propose_tx.extra or {}).get("contractId", 0))
+    _step_done(
+        emit,
+        "open_contract",
+        "Open Court contract",
+        "Court contract proposed",
+        {"contractId": contract_id, "txHash": propose_tx.tx_hash, "judge": judge_actor.address},
+    )
+
+    _step_start(emit, "accept_contract", "Accept Court contract", "Counterparty accepts split court agreement")
+    accept_tx = consumer_escrow.accept_agreement(contract_id)
+    _step_done(
+        emit,
+        "accept_contract",
+        "Accept Court contract",
+        "Court contract active",
+        {"contractId": contract_id, "txHash": accept_tx.tx_hash},
+    )
+
+    return {
+        "contractId": contract_id,
+        "judge": judge_actor.address,
+        "proposeTx": propose_tx.tx_hash,
+        "acceptTx": accept_tx.tx_hash,
+    }
+
+
 def run_happy_flow(*, emit: ProgressCallback | None = None, agreement_window_sec: int = 30) -> dict[str, Any]:
     evidence_url = os.environ.get("EVIDENCE_SERVICE_URL", "http://127.0.0.1:4001")
     provider_url = os.environ.get("PROVIDER_API_URL", "http://127.0.0.1:4000")
@@ -99,9 +155,10 @@ def run_happy_flow(*, emit: ProgressCallback | None = None, agreement_window_sec
 
     provider_escrow = build_client(provider_key)
     consumer_escrow = build_client(consumer_key)
+    escrow_amount = 10**15
 
     _step_start(emit, "deposit_pool", "Provider deposits escrow pool", "Submitting deposit transaction")
-    deposit_tx = provider_escrow.deposit_pool(10**15)
+    deposit_tx = provider_escrow.deposit_pool(escrow_amount)
     _step_done(
         emit,
         "deposit_pool",
@@ -111,13 +168,25 @@ def run_happy_flow(*, emit: ProgressCallback | None = None, agreement_window_sec
     )
 
     _step_start(emit, "post_bond", "Consumer posts bond", "Submitting bond on GOAT")
-    bond_tx = consumer_escrow.post_bond(agreement_id, 10**15)
+    bond_tx = consumer_escrow.post_bond(agreement_id, escrow_amount)
     _step_done(
         emit,
         "post_bond",
         "Consumer posts bond",
         "Bond transaction complete",
         {"txHash": bond_tx.tx_hash, "agreementId": agreement_id},
+    )
+
+    split_contract = _maybe_open_split_contract(
+        emit=emit,
+        rc=rc,
+        agreement_id=agreement_id,
+        clause_hash=clause["clauseHash"],
+        provider_actor=provider_actor,
+        consumer_actor=consumer_actor,
+        provider_escrow=provider_escrow,
+        consumer_escrow=consumer_escrow,
+        consideration=escrow_amount,
     )
 
     _step_start(emit, "provider_call", "Provider API call", "Requesting /api/data with x402 payment")
@@ -213,15 +282,31 @@ def run_happy_flow(*, emit: ProgressCallback | None = None, agreement_window_sec
         },
     )
 
-    _step_start(emit, "dispute_window_wait", "Wait dispute window", f"Waiting {agreement_window_sec}s")
-    time.sleep(agreement_window_sec)
-    _step_done(emit, "dispute_window_wait", "Wait dispute window", "Dispute window elapsed")
+    completion_tx = None
+    if split_contract is not None:
+        _step_start(emit, "complete_contract", "Complete Court contract", "Consumer releases split court settlement")
+        completion_tx = consumer_escrow.complete_agreement(split_contract["contractId"])
+        _step_done(
+            emit,
+            "complete_contract",
+            "Complete Court contract",
+            "Split court contract settled",
+            {"contractId": split_contract["contractId"], "txHash": completion_tx.tx_hash},
+        )
+    else:
+        _step_start(emit, "dispute_window_wait", "Wait dispute window", f"Waiting {agreement_window_sec}s")
+        time.sleep(agreement_window_sec)
+        _step_done(emit, "dispute_window_wait", "Wait dispute window", "Dispute window elapsed")
 
     return {
         "mode": "happy",
         "agreementId": agreement_id,
         "depositTx": deposit_tx.tx_hash,
         "bondTx": bond_tx.tx_hash,
+        "contractId": split_contract["contractId"] if split_contract else None,
+        "proposeTx": split_contract["proposeTx"] if split_contract else None,
+        "acceptTx": split_contract["acceptTx"] if split_contract else None,
+        "completionTx": completion_tx.tx_hash if completion_tx else None,
         "receiptIds": [
             req_receipt["receiptId"],
             res_receipt["receiptId"],
@@ -279,9 +364,10 @@ def run_dispute_flow(
 
     provider_escrow = build_client(provider_key)
     consumer_escrow = build_client(consumer_key)
+    escrow_amount = 10**15
 
     _step_start(emit, "deposit_pool", "Provider deposits escrow pool", "Submitting deposit transaction")
-    deposit_tx = provider_escrow.deposit_pool(10**15)
+    deposit_tx = provider_escrow.deposit_pool(escrow_amount)
     _step_done(
         emit,
         "deposit_pool",
@@ -291,13 +377,25 @@ def run_dispute_flow(
     )
 
     _step_start(emit, "post_bond", "Consumer posts bond", "Submitting bond on GOAT")
-    bond_tx = consumer_escrow.post_bond(agreement_id, 10**15)
+    bond_tx = consumer_escrow.post_bond(agreement_id, escrow_amount)
     _step_done(
         emit,
         "post_bond",
         "Consumer posts bond",
         "Bond transaction complete",
         {"txHash": bond_tx.tx_hash},
+    )
+
+    split_contract = _maybe_open_split_contract(
+        emit=emit,
+        rc=rc,
+        agreement_id=agreement_id,
+        clause_hash=clause["clauseHash"],
+        provider_actor=provider_actor,
+        consumer_actor=consumer_actor,
+        provider_escrow=provider_escrow,
+        consumer_escrow=consumer_escrow,
+        consideration=escrow_amount,
     )
 
     x402 = X402Client(consumer_key)
@@ -393,8 +491,9 @@ def run_dispute_flow(
     _step_start(emit, "file_dispute", "File dispute", "Submitting dispute transaction")
     dispute_tx = consumer_escrow.file_dispute(
         agreement_id,
+        tx_id=split_contract["contractId"] if split_contract else None,
         defendant=provider_actor.address,
-        stake=10**15,
+        stake=escrow_amount,
         plaintiff_evidence=anchor["rootHash"],
     )
     _step_done(
@@ -410,6 +509,9 @@ def run_dispute_flow(
         "agreementId": agreement_id,
         "depositTx": deposit_tx.tx_hash,
         "bondTx": bond_tx.tx_hash,
+        "contractId": split_contract["contractId"] if split_contract else None,
+        "proposeTx": split_contract["proposeTx"] if split_contract else None,
+        "acceptTx": split_contract["acceptTx"] if split_contract else None,
         "disputeTx": dispute_tx.tx_hash,
         "disputeId": (
             str(dispute_tx.extra.get("disputeId"))

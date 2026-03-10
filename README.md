@@ -80,6 +80,27 @@ Required important values:
 - `X402_NETWORK=eip155:84532`
 - `X402_SELLER_WALLET=...`
 
+### Split v3 contract mode
+
+The default app runtime still targets `contracts/AgentCourt.sol`.
+
+To exercise the new Foundry v3 contract layout instead, set:
+
+- `ESCROW_CONTRACT_MODE=split`
+- `ESCROW_COURT_ADDRESS=...`
+- `ESCROW_VAULT_ADDRESS=...`
+- `ESCROW_JUDGE_REGISTRY_ADDRESS=...`
+
+Current split-mode behavior on `main`:
+
+- consumer flows can create and accept `Court` contracts and carry the Court contract ID into disputes
+- judge service can resolve the assigned judge per dispute instead of relying on one global judge address
+- evidence service stores the receipt Merkle root off-chain when `commitEvidenceHash()` does not exist, then submits that root during dispute evidence handling
+
+Current split-mode limitation:
+
+- there is still no dedicated on-chain anchor contract for receipt roots, so `/anchor` returns `anchorMode=offchain_bundle` and `txHash=null` in split mode
+
 ### GOAT x402 merchant credentials (very important)
 
 For GOAT marketplace onboarding and dashboard flows, keep these values in a local, untracked env file (backend only):

@@ -45,4 +45,9 @@ forge script script/Deploy.s.sol:Deploy --broadcast
 
 - `Court.sol` now emits the actual contract ID in `Completed`.
 - Judge timeout slashing now transfers the slashed amount to `charity` instead of leaving it stranded in vault accounting.
-- This workspace is checked into `main`, but the Python services are not yet migrated to target these contracts.
+- `main` now has an initial protocol bridge for split mode:
+  - `EscrowClient` can target `Court`, `Vault`, and `JudgeRegistry`
+  - consumer flows can propose and accept Court contracts before filing disputes
+  - judge service can resolve the assigned judge per dispute
+- Evidence roots are still stored off-chain first in split mode because there is no dedicated anchor contract yet.
+- Full app cutover is not complete; the legacy monolithic contract remains the default runtime target.
