@@ -30,16 +30,18 @@ CONSOLE_PORT=4173
 RUN_MODE="full"
 LIVE_MODE=false
 CONSOLE_ONLY=false
+SPLIT_LOCAL=false
 
 for arg in "$@"; do
   case "$arg" in
     --live) LIVE_MODE=true ;;
     --console) CONSOLE_ONLY=true ;;
+    --split-local) SPLIT_LOCAL=true ;;
     --happy) RUN_MODE="happy" ;;
     --dispute) RUN_MODE="dispute" ;;
     *)
       echo "Unknown argument: $arg" >&2
-      echo "Usage: ./scripts/demo.sh [--live] [--console] [--happy|--dispute]" >&2
+      echo "Usage: ./scripts/demo.sh [--live|--split-local] [--console] [--happy|--dispute]" >&2
       exit 1
       ;;
   esac
@@ -52,12 +54,20 @@ load_env_file() {
   fi
 
   set -a
-  source <(grep -E '^(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*=.*$' "$file")
+  source "$file"
   set +a
 }
 
+if [ "$SPLIT_LOCAL" = true ]; then
+  echo "Bootstrapping local split stack..."
+  bash "$ROOT/scripts/bootstrap_split_local.sh"
+fi
+
 load_env_file .env
 load_env_file .env.local
+if [ "$SPLIT_LOCAL" = true ]; then
+  load_env_file .env.split.local
+fi
 
 : "${PROVIDER_PRIVATE_KEY:=0x1111111111111111111111111111111111111111111111111111111111111111}"
 : "${CONSUMER_PRIVATE_KEY:=0x2222222222222222222222222222222222222222222222222222222222222222}"
@@ -81,8 +91,13 @@ export X402_SELLER_WALLET
 
 if [ "$LIVE_MODE" = false ]; then
   export X402_ALLOW_MOCK=1
-  export ESCROW_DRY_RUN=1
-  echo "[MOCK MODE] Payments and contract interactions are simulated."
+  if [ "$SPLIT_LOCAL" = true ]; then
+    unset ESCROW_DRY_RUN || true
+    echo "[LOCAL SPLIT MODE] Payments are mocked, but contract interactions are live."
+  else
+    export ESCROW_DRY_RUN=1
+    echo "[MOCK MODE] Payments and contract interactions are simulated."
+  fi
   if [ "${DEMO_RESET_STATE:-1}" != "0" ]; then
     rm -f \
       "$ROOT/data/verdict.db" \

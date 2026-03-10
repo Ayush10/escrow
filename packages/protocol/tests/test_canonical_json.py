@@ -7,3 +7,12 @@ def test_canonical_json_is_deterministic() -> None:
 
     assert canonical_json_dumps(a) == canonical_json_dumps(b)
     assert canonical_json_dumps(a) == '{"a":{"x":3,"y":2},"list":[{"a":1,"b":2}],"z":1}'
+
+
+def test_canonical_json_normalizes_bytes_to_hex() -> None:
+    payload = {"rootHash": bytes.fromhex("ab" * 32), "nested": [bytearray.fromhex("cd" * 4)]}
+
+    assert canonical_json_dumps(payload) == (
+        '{"nested":["0xcdcdcdcd"],'
+        '"rootHash":"0xabababababababababababababababababababababababababababababababab"}'
+    )

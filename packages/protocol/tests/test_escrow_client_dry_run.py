@@ -140,6 +140,9 @@ class _FakeEvent:
     def create_filter(self, from_block=0, to_block="latest"):
         return _FakeEventFilter(self._entries)
 
+    def get_logs(self, from_block=0, to_block="latest"):
+        return list(self._entries)
+
 
 class _FakeCourtFunctions:
     def __init__(self, *, plaintiff: str, defendant: str, judge: str, winner: str):

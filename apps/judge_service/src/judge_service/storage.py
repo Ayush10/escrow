@@ -5,6 +5,8 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from verdict_protocol import canonical_json_dumps
+
 
 class JudgeStorage:
     def __init__(self, db_path: str) -> None:
@@ -86,7 +88,7 @@ class JudgeStorage:
                 verdict.get("agreementId"),
                 status,
                 review_reason,
-                json.dumps(verdict, separators=(",", ":")),
+                canonical_json_dumps(verdict),
             ),
         )
         self.conn.commit()

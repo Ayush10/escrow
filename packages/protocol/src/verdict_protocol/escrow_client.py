@@ -972,20 +972,48 @@ class EscrowClient:
         if not self.account:
             raise RuntimeError("private key required for state-changing transactions")
 
+        tx_params = {
+            "from": self.account.address,
+            "chainId": self.chain_id,
+            "value": value,
+        }
         nonce = self.w3.eth.get_transaction_count(self.account.address)
+        try:
+            estimated_gas = int(fn_call.estimate_gas(tx_params))
+        except Exception as exc:
+            raise RuntimeError(
+                f"transaction preflight failed for {self.account.address}, "
+                f"chain_id={self.chain_id}, mode={self.deployment_mode}: {exc}"
+            ) from exc
         tx = fn_call.build_transaction(
             {
-                "from": self.account.address,
+                **tx_params,
                 "nonce": nonce,
-                "chainId": self.chain_id,
-                "value": value,
-                "gas": 700_000,
+                "gas": max(700_000, estimated_gas + max(estimated_gas // 5, 25_000)),
                 "gasPrice": self.w3.eth.gas_price,
             }
         )
         signed = self.account.sign_transaction(tx)
-        tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
-        receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+        try:
+            tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+        except Exception as exc:
+            balance = None
+            with_balance = ""
+            try:
+                balance = self.w3.eth.get_balance(self.account.address)
+                with_balance = f", balance={balance}"
+            except Exception:
+                with_balance = ""
+            raise RuntimeError(
+                f"transaction submission failed for {self.account.address}"
+                f"{with_balance}, chain_id={self.chain_id}, mode={self.deployment_mode}: {exc}"
+            ) from exc
+        if int(receipt.status) != 1:
+            raise RuntimeError(
+                f"transaction reverted for {self.account.address}, tx_hash={tx_hash.hex()}, "
+                f"chain_id={self.chain_id}, mode={self.deployment_mode}"
+            )
         return EscrowTxResult(tx_hash=tx_hash.hex(), block_number=receipt.blockNumber, status=receipt.status)
 
     def _ensure_split_allowance(self, amount_wei: int) -> EscrowTxResult | None:
@@ -1514,6 +1542,23 @@ class EscrowClient:
         judge = to_checksum_address(dispute[2]) if dispute[2] else ZERO_ADDRESS
         return None if judge == ZERO_ADDRESS else judge
 
+    def _event_entries(self, event_obj: Any, from_block: int, to_block: int | str = "latest") -> list[dict[str, Any]]:
+        if hasattr(event_obj, "get_logs"):
+            raw_entries = event_obj.get_logs(from_block=from_block, to_block=to_block)
+        else:
+            flt = event_obj.create_filter(from_block=from_block, to_block=to_block)
+            raw_entries = flt.get_all_entries()
+
+        entries: list[dict[str, Any]] = []
+        for raw in raw_entries:
+            entry = dict(raw)
+            if entry.get("transactionHash") is not None:
+                entry["transactionHash"] = _hex_or_str(entry["transactionHash"])
+            if entry.get("blockNumber") is not None:
+                entry["blockNumber"] = int(entry["blockNumber"])
+            entries.append(entry)
+        return entries
+
     def poll_events(self, event_name: str, from_block: int, to_block: int | str = "latest") -> list[dict[str, Any]]:
         if self.dry_run:
             if self._mock_conn is None:
@@ -1544,10 +1589,8 @@ class EscrowClient:
                 if self.evidence_anchor_contract is None:
                     return []
                 event_obj = self.evidence_anchor_contract.events.EvidenceCommitted
-                flt = event_obj.create_filter(from_block=from_block, to_block=to_block)
                 logs: list[dict[str, Any]] = []
-                for log in flt.get_all_entries():
-                    entry = dict(log)
+                for entry in self._event_entries(event_obj, from_block=from_block, to_block=to_block):
                     args = dict(entry.get("args", {}))
                     entry["args"] = {
                         "agreementId": args.get("agreementId"),
@@ -1560,10 +1603,8 @@ class EscrowClient:
                 return logs
             if event_name == "DisputeFiled":
                 event_obj = self.contract.events.DisputeFiled
-                flt = event_obj.create_filter(from_block=from_block, to_block=to_block)
                 logs: list[dict[str, Any]] = []
-                for log in flt.get_all_entries():
-                    entry = dict(log)
+                for entry in self._event_entries(event_obj, from_block=from_block, to_block=to_block):
                     args = dict(entry.get("args", {}))
                     dispute_id = int(args.get("id", 0))
                     dispute = self.get_dispute(dispute_id)
@@ -1576,10 +1617,8 @@ class EscrowClient:
                 return logs
             if event_name == "RulingSubmitted":
                 event_obj = self.contract.events.Ruled
-                flt = event_obj.create_filter(from_block=from_block, to_block=to_block)
                 logs: list[dict[str, Any]] = []
-                for log in flt.get_all_entries():
-                    entry = dict(log)
+                for entry in self._event_entries(event_obj, from_block=from_block, to_block=to_block):
                     args = dict(entry.get("args", {}))
                     dispute_id = int(args.get("id", 0))
                     winner = to_checksum_address(args.get("winner", ZERO_ADDRESS))
@@ -1600,8 +1639,7 @@ class EscrowClient:
         if event_name not in self.event_index:
             return []
         event_obj = getattr(self.contract.events, event_name)
-        flt = event_obj.create_filter(from_block=from_block, to_block=to_block)
-        return [dict(log) for log in flt.get_all_entries()]
+        return self._event_entries(event_obj, from_block=from_block, to_block=to_block)
 
 
 def _winner_from_verdict(verdict_data: dict[str, Any]) -> str:

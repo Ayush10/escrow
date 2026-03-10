@@ -42,6 +42,13 @@ CHARITY_ADDRESS=0x... \
 forge script script/Deploy.s.sol:Deploy --broadcast
 ```
 
+Bootstrap a full local split stack:
+
+```bash
+cd ..
+bash ./scripts/bootstrap_split_local.sh
+```
+
 ## Current notes
 
 - `Court.sol` now emits the actual contract ID in `Completed`.

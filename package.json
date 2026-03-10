@@ -7,6 +7,8 @@
     "demo:console": "bash ./scripts/demo.sh --console",
     "demo:happy": "bash ./scripts/demo.sh --happy",
     "demo:dispute": "bash ./scripts/demo.sh --dispute",
+    "demo:split-local": "bash ./scripts/demo.sh --split-local",
+    "bootstrap:split-local": "bash ./scripts/bootstrap_split_local.sh",
     "demo:ui": "python3 -m http.server 4173 --directory console",
     "dashboard:payment": "bash ./scripts/run_module.sh demo_runner.push_dashboard_payment",
     "dev:evidence": "bash ./scripts/run_module.sh evidence_service.server",

@@ -20,11 +20,15 @@ build/
 # Local runtime
 .env
 .env.local
+.env.split.local
 *.db
 *.sqlite
 *.sqlite3
 data/
 logs/
+foundry/broadcast/
+foundry/cache/
+foundry/deployments/
 
 # IDE / OS
 .DS_Store

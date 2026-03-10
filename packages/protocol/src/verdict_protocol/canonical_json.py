@@ -9,6 +9,8 @@ from typing import Any
 def _normalize(value: Any) -> Any:
     if isinstance(value, Mapping):
         return {k: _normalize(value[k]) for k in sorted(value)}
+    if isinstance(value, (bytes, bytearray)):
+        return "0x" + bytes(value).hex()
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         return [_normalize(v) for v in value]
     if isinstance(value, float) and value.is_integer():

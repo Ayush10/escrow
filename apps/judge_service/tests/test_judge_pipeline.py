@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 from eth_account import Account
+from hexbytes import HexBytes
 from verdict_protocol import (
     compute_receipt_hash,
     hash_canonical,
@@ -40,6 +41,12 @@ class FakeLLM:
     def judge(self, clause, facts, evidence_summary):
         _ = (clause, facts, evidence_summary)
         return ["llm_unused"], None, 0.5
+
+
+class EmptyWatcher:
+    def poll(self, from_block: int, to_block: int | str = "latest"):
+        _ = (from_block, to_block)
+        return [], from_block
 
 
 @pytest.mark.asyncio
@@ -182,3 +189,68 @@ async def test_judge_pipeline_deterministic_submission(monkeypatch):
         assert verdicts[0]["judgeSignature"].startswith("0x")
         assert verdicts[0]["judgeSignerBackend"] == "env"
         assert verdicts[0]["disputeTxHash"] == "0x" + "4" * 64
+
+
+def test_find_dispute_event_falls_back_to_direct_chain_lookup() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        os.environ["SQLITE_PATH"] = f"{td}/judge.db"
+
+        from judge_service.server import _find_dispute_event
+        from judge_service.server_state import JudgeState
+        from judge_service.storage import JudgeStorage
+
+        plaintiff = Account.create()
+        defendant = Account.create()
+        dispute = (
+            7,
+            plaintiff.address,
+            defendant.address,
+            100,
+            0,
+            0,
+            bytes.fromhex("11" * 32),
+            bytes.fromhex("00" * 32),
+            False,
+            "0x" + "0" * 40,
+        )
+
+        state = JudgeState(
+            storage=JudgeStorage(os.environ["SQLITE_PATH"]),
+            escrow=FakeEscrow(dispute),
+            watcher=EmptyWatcher(),
+            llm=FakeLLM(),
+            signer=None,
+            evidence_url="http://unused",
+        )
+
+        event = _find_dispute_event(state, 1)
+
+        assert event is not None
+        assert event.dispute_id == 1
+        assert event.plaintiff.lower() == plaintiff.address.lower()
+        assert event.defendant.lower() == defendant.address.lower()
+        assert event.tx_hash is None
+
+
+def test_judge_storage_normalizes_hexbytes_payloads() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        os.environ["SQLITE_PATH"] = f"{td}/judge.db"
+
+        from judge_service.storage import JudgeStorage
+
+        storage = JudgeStorage(os.environ["SQLITE_PATH"])
+        storage.store_verdict(
+            {
+                "verdictId": str(uuid.uuid4()),
+                "disputeId": "7",
+                "agreementId": "agreement-7",
+                "winner": "0x" + "1" * 40,
+                "facts": {"raw": HexBytes("0x1234")},
+            },
+            "submitted",
+        )
+
+        verdict = storage.get_verdict_by_dispute("7")
+
+        assert verdict is not None
+        assert verdict["facts"]["raw"] == "0x1234"

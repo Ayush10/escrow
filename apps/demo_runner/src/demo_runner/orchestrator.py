@@ -40,11 +40,17 @@ def _apply_runtime_defaults() -> None:
     if os.environ.get("DEMO_RUNTIME_DEFAULTS", "1") not in {"1", "true", "yes", "on"}:
         return
 
+    split_requested = (
+        os.environ.get("ESCROW_CONTRACT_MODE", "").lower() == "split"
+        or bool(os.environ.get("ESCROW_COURT_ADDRESS"))
+        or bool(os.environ.get("ESCROW_VAULT_ADDRESS"))
+        or bool(os.environ.get("ESCROW_JUDGE_REGISTRY_ADDRESS"))
+        or bool(os.environ.get("ESCROW_REGISTRY_ADDRESS"))
+    )
     provider_pk = "0x" + ("1" * 64)
     consumer_pk = "0x" + ("2" * 64)
     judge_pk = "0x" + ("3" * 64)
     defaults = {
-        "ESCROW_DRY_RUN": "1",
         "X402_ALLOW_MOCK": "1",
         "GOAT_CHAIN_ID": "48816",
         "GOAT_RPC_URL": "https://rpc.testnet3.goat.network",
@@ -55,6 +61,8 @@ def _apply_runtime_defaults() -> None:
         "JUDGE_PRIVATE_KEY": judge_pk,
         "X402_SELLER_WALLET": "0x0000000000000000000000000000000000000000",
     }
+    if not split_requested:
+        defaults["ESCROW_DRY_RUN"] = "1"
     for key, value in defaults.items():
         os.environ.setdefault(key, value)
 
@@ -249,6 +257,13 @@ class DemoRunManager:
             self._flow_module.run_happy_flow,
             self._flow_module.run_dispute_flow,
         )
+
+    def _should_auto_process_disputes(self) -> bool:
+        if os.environ.get("ESCROW_DRY_RUN", "0") == "1":
+            return True
+        if os.environ.get("DEMO_AUTO_PROCESS_DISPUTES", "").lower() in {"1", "true", "yes", "on"}:
+            return True
+        return os.environ.get("ESCROW_CONTRACT_MODE", "").lower() == "split"
 
     def get(self, run_id: str) -> DemoRun | None:
         return self._runs.get(run_id)
@@ -555,7 +570,7 @@ class DemoRunManager:
                 dispute_ref = result.get("disputeId") or result.get("disputeTx") or result.get("txHash")
                 if dispute_ref:
                     run.dispute_ids.append(str(dispute_ref))
-                if os.environ.get("ESCROW_DRY_RUN", "0") == "1":
+                if self._should_auto_process_disputes():
                     verdict = await self._process_dispute_for_demo(
                         run,
                         str(result["disputeId"]) if result.get("disputeId") else None,

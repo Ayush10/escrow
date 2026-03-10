@@ -278,6 +278,18 @@ def _find_dispute_event(state: JudgeState, dispute_id: int) -> DisputeEvent | No
     for event in reversed(events):
         if int(event.dispute_id) == int(dispute_id):
             return event
+    dispute = state.escrow.get_dispute(dispute_id)
+    if dispute is None:
+        return None
+    plaintiff = to_checksum_address(dispute[1] if len(dispute) >= 10 else dispute[0])
+    defendant = to_checksum_address(dispute[2] if len(dispute) >= 10 else dispute[1])
+    return DisputeEvent(
+        dispute_id=int(dispute_id),
+        plaintiff=plaintiff,
+        defendant=defendant,
+        block_number=0,
+        tx_hash=None,
+    )
     return None
 
 

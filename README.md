@@ -77,6 +77,7 @@ Required important values:
 - `GOAT_CHAIN_ID=48816`
 - `ESCROW_CONTRACT_ADDRESS=...`
 - `JUDGE_PRIVATE_KEY`, `PROVIDER_PRIVATE_KEY`, `CONSUMER_PRIVATE_KEY`
+- optional: `EVIDENCE_SIGNER_PRIVATE_KEY` if you want the evidence service to anchor with a separate operator wallet
 - `X402_FACILITATOR_URL=https://www.x402.org/facilitator`
 - `X402_NETWORK=eip155:84532`
 - `X402_SELLER_WALLET=...`
@@ -110,6 +111,14 @@ Current split-mode behavior on `main`:
 Current split-mode limitation:
 
 - if `ESCROW_EVIDENCE_ANCHOR_ADDRESS` is not configured, `/anchor` falls back to `anchorMode=offchain_bundle`
+
+Local split stack bootstrap:
+
+```bash
+bash ./scripts/demo.sh --split-local --dispute
+```
+
+`--split-local` now bootstraps the local Anvil RPC automatically, deploys `MockUSDC` plus the split `Vault` / `JudgeRegistry` / `Court` / `EvidenceAnchor` stack, writes `.env.split.local`, and pre-registers the local judge account before starting the app services.
 
 ### GOAT x402 merchant credentials (very important)
 
