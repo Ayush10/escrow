@@ -14,6 +14,12 @@ from .receipt_client import ReceiptClient
 ProgressCallback = Callable[[dict[str, Any]], None]
 
 
+def _runtime_contract_address() -> str:
+    if os.environ.get("ESCROW_CONTRACT_MODE", "").lower() == "split":
+        return os.environ.get("ESCROW_COURT_ADDRESS", "0x0000000000000000000000000000000000000000")
+    return os.environ.get("ESCROW_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000000")
+
+
 def _emit(callback: ProgressCallback | None, event: dict[str, Any]) -> None:
     if callback is None:
         return
@@ -132,9 +138,7 @@ def run_happy_flow(*, emit: ProgressCallback | None = None, agreement_window_sec
 
     agreement_id = str(uuid.uuid4())
     chain_id = int(os.environ.get("GOAT_CHAIN_ID", "48816"))
-    contract_addr = os.environ.get(
-        "ESCROW_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000000"
-    )
+    contract_addr = _runtime_contract_address()
 
     _step_start(emit, "clause_created", "Create arbitration clause", "Preparing clause fields")
     clause = rc.create_clause(
@@ -341,9 +345,7 @@ def run_dispute_flow(
 
     agreement_id = str(uuid.uuid4())
     chain_id = int(os.environ.get("GOAT_CHAIN_ID", "48816"))
-    contract_addr = os.environ.get(
-        "ESCROW_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000000"
-    )
+    contract_addr = _runtime_contract_address()
 
     _step_start(emit, "clause_created", "Create arbitration clause", "Preparing clause fields")
     clause = rc.create_clause(

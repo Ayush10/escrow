@@ -158,6 +158,13 @@ SPLIT_COURT_ABI: list[dict[str, Any]] = [
 SPLIT_VAULT_ABI: list[dict[str, Any]] = [
     {
         "type": "function",
+        "name": "usdc",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [{"type": "address"}],
+    },
+    {
+        "type": "function",
         "name": "deposit",
         "stateMutability": "nonpayable",
         "inputs": [{"name": "amount", "type": "uint256"}],
@@ -203,6 +210,25 @@ SPLIT_REGISTRY_ABI: list[dict[str, Any]] = [
         "inputs": [{"name": "judge", "type": "address"}],
         "outputs": [{"type": "uint256"}],
     },
+    {
+        "type": "function",
+        "name": "registerJudge",
+        "stateMutability": "nonpayable",
+        "inputs": [
+            {"name": "superior", "type": "address"},
+            {"name": "fee", "type": "uint256"},
+            {"name": "endpoint", "type": "string"},
+            {"name": "maxResponseTime", "type": "uint256"},
+        ],
+        "outputs": [],
+    },
+    {
+        "type": "function",
+        "name": "topUpBond",
+        "stateMutability": "nonpayable",
+        "inputs": [{"name": "amount", "type": "uint256"}],
+        "outputs": [],
+    },
 ]
 
 SPLIT_EVIDENCE_ANCHOR_ABI: list[dict[str, Any]] = [
@@ -242,6 +268,29 @@ SPLIT_EVIDENCE_ANCHOR_ABI: list[dict[str, Any]] = [
             {"indexed": False, "name": "bundleCid", "type": "string"},
             {"indexed": True, "name": "submitter", "type": "address"},
         ],
+    },
+]
+
+SPLIT_ERC20_ABI: list[dict[str, Any]] = [
+    {
+        "type": "function",
+        "name": "allowance",
+        "stateMutability": "view",
+        "inputs": [
+            {"name": "owner", "type": "address"},
+            {"name": "spender", "type": "address"},
+        ],
+        "outputs": [{"type": "uint256"}],
+    },
+    {
+        "type": "function",
+        "name": "approve",
+        "stateMutability": "nonpayable",
+        "inputs": [
+            {"name": "spender", "type": "address"},
+            {"name": "amount", "type": "uint256"},
+        ],
+        "outputs": [{"type": "bool"}],
     },
 ]
 
@@ -306,9 +355,11 @@ class EscrowClient:
         self.vault_address: str | None = None
         self.registry_address: str | None = None
         self.evidence_anchor_address: str | None = None
+        self.asset_address: str | None = None
         self.vault_contract = None
         self.registry_contract = None
         self.evidence_anchor_contract = None
+        self.asset_contract = None
 
         split_requested = (
             os.environ.get("ESCROW_CONTRACT_MODE", "").lower() == "split"
@@ -347,8 +398,20 @@ class EscrowClient:
                 if self.evidence_anchor_address
                 else None
             )
+            if self.vault_contract is not None:
+                try:
+                    asset_address = self.vault_contract.functions.usdc().call()
+                except Exception:
+                    asset_address = None
+                if asset_address:
+                    self.asset_address = to_checksum_address(asset_address)
+                    self.asset_contract = self.w3.eth.contract(address=self.asset_address, abi=SPLIT_ERC20_ABI)
             combined_abi = (
-                SPLIT_COURT_ABI + SPLIT_VAULT_ABI + SPLIT_REGISTRY_ABI + SPLIT_EVIDENCE_ANCHOR_ABI
+                SPLIT_COURT_ABI
+                + SPLIT_VAULT_ABI
+                + SPLIT_REGISTRY_ABI
+                + SPLIT_EVIDENCE_ANCHOR_ABI
+                + SPLIT_ERC20_ABI
             )
             self.fn_index = {f["name"]: f for f in combined_abi if f.get("type") == "function"}
             self.event_index = {
@@ -844,6 +907,8 @@ class EscrowClient:
                 "vaultConfigured": self.vault_contract is not None,
                 "judgeRegistryConfigured": self.registry_contract is not None,
                 "evidenceAnchorConfigured": self.evidence_anchor_contract is not None,
+                "assetConfigured": self.asset_contract is not None,
+                "registerJudge": self.registry_contract is not None,
                 "createAgreement": True,
                 "acceptAgreement": True,
                 "completeAgreement": True,
@@ -860,6 +925,7 @@ class EscrowClient:
             "rpcConnected": self.connected,
             "contractHasCode": self.contract_has_code,
             "splitContractSet": False,
+            "registerJudge": False,
             "createAgreement": False,
             "acceptAgreement": False,
             "completeAgreement": False,
@@ -888,6 +954,7 @@ class EscrowClient:
                     "vaultAddress": self.vault_address,
                     "judgeRegistryAddress": self.registry_address,
                     "evidenceAnchorAddress": self.evidence_anchor_address,
+                    "assetAddress": self.asset_address,
                     "vaultHasCode": self.vault_has_code,
                     "judgeRegistryHasCode": self.registry_has_code,
                     "evidenceAnchorHasCode": self.evidence_anchor_has_code,
@@ -921,17 +988,39 @@ class EscrowClient:
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
         return EscrowTxResult(tx_hash=tx_hash.hex(), block_number=receipt.blockNumber, status=receipt.status)
 
+    def _ensure_split_allowance(self, amount_wei: int) -> EscrowTxResult | None:
+        if self.deployment_mode != "split" or self.dry_run:
+            return None
+        if self.asset_contract is None or self.vault_address is None or self.account is None:
+            return None
+
+        allowance = int(
+            self.asset_contract.functions.allowance(
+                to_checksum_address(self.account.address),
+                to_checksum_address(self.vault_address),
+            ).call()
+        )
+        if allowance >= int(amount_wei):
+            return None
+
+        max_uint = (1 << 256) - 1
+        return self._send_tx(self.asset_contract.functions.approve(self.vault_address, max_uint))
+
     def deposit_pool(self, amount_wei: int) -> EscrowTxResult:
         if self.deployment_mode == "split":
             if self.vault_contract is None:
                 raise RuntimeError("split contract mode requires ESCROW_VAULT_ADDRESS")
+            approval_tx = self._ensure_split_allowance(amount_wei)
             deposit_tx = self._send_tx(self.vault_contract.functions.deposit(int(amount_wei)))
             bond_tx = self._send_tx(self.vault_contract.functions.moveToBond(int(amount_wei)))
+            extra = {"depositTxHash": deposit_tx.tx_hash, "bondMoveTxHash": bond_tx.tx_hash}
+            if approval_tx is not None:
+                extra["approveTxHash"] = approval_tx.tx_hash
             return EscrowTxResult(
                 tx_hash=bond_tx.tx_hash,
                 block_number=bond_tx.block_number,
                 status=bond_tx.status,
-                extra={"depositTxHash": deposit_tx.tx_hash, "bondMoveTxHash": bond_tx.tx_hash},
+                extra=extra,
             )
         if "depositPool" in self.fn_index:
             fn = self.contract.functions.depositPool(amount_wei)
@@ -1034,17 +1123,21 @@ class EscrowClient:
         if self.deployment_mode == "split":
             if self.vault_contract is None:
                 raise RuntimeError("split contract mode requires ESCROW_VAULT_ADDRESS")
+            approval_tx = self._ensure_split_allowance(amount_wei)
             deposit_tx = self._send_tx(self.vault_contract.functions.deposit(int(amount_wei)))
             bond_tx = self._send_tx(self.vault_contract.functions.moveToBond(int(amount_wei)))
+            extra = {
+                "agreementId": agreement_id,
+                "depositTxHash": deposit_tx.tx_hash,
+                "bondMoveTxHash": bond_tx.tx_hash,
+            }
+            if approval_tx is not None:
+                extra["approveTxHash"] = approval_tx.tx_hash
             return EscrowTxResult(
                 tx_hash=bond_tx.tx_hash,
                 block_number=bond_tx.block_number,
                 status=bond_tx.status,
-                extra={
-                    "agreementId": agreement_id,
-                    "depositTxHash": deposit_tx.tx_hash,
-                    "bondMoveTxHash": bond_tx.tx_hash,
-                },
+                extra=extra,
             )
         if "postBond" in self.fn_index:
             fn = self.contract.functions.postBond(agreement_id, amount_wei)
@@ -1147,6 +1240,67 @@ class EscrowClient:
         tx = self._send_tx(fn)
         tx.extra = {"contractId": int(contract_id)}
         return tx
+
+    def register_judge(
+        self,
+        *,
+        superior: str | None = None,
+        fee: int = 0,
+        endpoint: str = "",
+        max_response_time: int = 300,
+        bond_amount: int | None = None,
+    ) -> EscrowTxResult:
+        if self.deployment_mode != "split":
+            raise RuntimeError("register_judge is only supported in split contract mode")
+        if self.registry_contract is None:
+            raise RuntimeError("split contract mode requires ESCROW_JUDGE_REGISTRY_ADDRESS")
+
+        normalized_superior = ZERO_ADDRESS if not superior else to_checksum_address(superior)
+        required_bond = max(int(fee), int(bond_amount or 0))
+
+        if self.dry_run:
+            block = self._mock_next_counter("block", start=self._mock_block_start())
+            tx_hash = self._mock_tx_hash("register-judge")
+            return EscrowTxResult(
+                tx_hash=tx_hash,
+                block_number=block,
+                status=1,
+                extra={
+                    "judge": self.account.address if self.account else ZERO_ADDRESS,
+                    "superior": normalized_superior,
+                    "fee": int(fee),
+                    "bondAmount": required_bond,
+                },
+            )
+
+        approval_tx = None
+        deposit_tx = None
+        bond_tx = None
+        if required_bond > 0:
+            if self.vault_contract is None:
+                raise RuntimeError("split contract mode requires ESCROW_VAULT_ADDRESS")
+            approval_tx = self._ensure_split_allowance(required_bond)
+            deposit_tx = self._send_tx(self.vault_contract.functions.deposit(required_bond))
+            bond_tx = self._send_tx(self.vault_contract.functions.moveToBond(required_bond))
+
+        register_tx = self._send_tx(
+            self.registry_contract.functions.registerJudge(
+                normalized_superior,
+                int(fee),
+                endpoint,
+                int(max_response_time),
+            )
+        )
+        register_tx.extra = {
+            "judge": self.account.address if self.account else ZERO_ADDRESS,
+            "superior": normalized_superior,
+            "fee": int(fee),
+            "bondAmount": required_bond,
+            "approveTxHash": approval_tx.tx_hash if approval_tx else None,
+            "depositTxHash": deposit_tx.tx_hash if deposit_tx else None,
+            "bondMoveTxHash": bond_tx.tx_hash if bond_tx else None,
+        }
+        return register_tx
 
     def commit_evidence_hash(
         self,

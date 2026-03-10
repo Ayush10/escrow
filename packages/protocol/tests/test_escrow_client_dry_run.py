@@ -1,10 +1,11 @@
 import os
 import tempfile
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 
-from verdict_protocol import EscrowClient
+from verdict_protocol import EscrowClient, EscrowTxResult
 
 
 def test_escrow_client_dry_run_lifecycle() -> None:
@@ -249,6 +250,30 @@ class _FakeEvidenceAnchorContract:
         self.events = _FakeEvidenceAnchorEvents()
 
 
+class _FakeERC20Functions:
+    def __init__(self, allowance: int):
+        self._allowance = allowance
+
+    def allowance(self, owner: str, spender: str):
+        return _FakeCall(self._allowance)
+
+    def approve(self, spender: str, amount: int):
+        return ("approve", spender, amount)
+
+
+class _FakeVaultTxFunctions:
+    def deposit(self, amount: int):
+        return ("deposit", amount)
+
+    def moveToBond(self, amount: int):
+        return ("moveToBond", amount)
+
+
+class _FakeRegistryTxFunctions:
+    def registerJudge(self, superior: str, fee: int, endpoint: str, max_response_time: int):
+        return ("registerJudge", superior, fee, endpoint, max_response_time)
+
+
 def test_escrow_client_split_mode_reports_capabilities_and_synthesizes_disputes() -> None:
     with tempfile.TemporaryDirectory() as td:
         env = {
@@ -433,3 +458,102 @@ def test_escrow_client_split_mode_dry_run_anchor_is_idempotent_with_bundle_metad
             evidence_events = client.poll_events("EvidenceCommitted", from_block=0)
             assert evidence_events[0]["args"]["bundleHash"] == "0x" + "b" * 64
             assert evidence_events[0]["args"]["bundleCid"] == "ipfs://bafy-bundle"
+
+
+def test_escrow_client_split_mode_live_deposit_auto_approves_asset() -> None:
+    env = {
+        "ESCROW_CONTRACT_MODE": "split",
+        "ESCROW_COURT_ADDRESS": "0x" + "1" * 40,
+        "ESCROW_VAULT_ADDRESS": "0x" + "2" * 40,
+        "ESCROW_JUDGE_REGISTRY_ADDRESS": "0x" + "3" * 40,
+    }
+    with patch.dict(os.environ, env, clear=False):
+        client = EscrowClient(
+            rpc_url="https://rpc.testnet3.goat.network",
+            chain_id=48816,
+            contract_address="0x" + "1" * 40,
+            private_key="0x" + "1" * 64,
+            dry_run=True,
+        )
+
+    client.dry_run = False
+    client.asset_contract = SimpleNamespace(functions=_FakeERC20Functions(allowance=0))
+    client.vault_contract = SimpleNamespace(functions=_FakeVaultTxFunctions())
+
+    sent_calls: list[tuple] = []
+
+    def fake_send(fn_call, *, value: int = 0):
+        sent_calls.append(fn_call)
+        idx = len(sent_calls)
+        return EscrowTxResult(tx_hash=f"0x{idx:064x}", block_number=idx, status=1)
+
+    client._send_tx = fake_send  # type: ignore[method-assign]
+
+    result = client.deposit_pool(25)
+
+    assert sent_calls[0][0] == "approve"
+    assert sent_calls[1] == ("deposit", 25)
+    assert sent_calls[2] == ("moveToBond", 25)
+    assert result.extra == {
+        "depositTxHash": "0x" + "2".zfill(64),
+        "bondMoveTxHash": "0x" + "3".zfill(64),
+        "approveTxHash": "0x" + "1".zfill(64),
+    }
+
+
+def test_escrow_client_split_mode_register_judge_bonds_then_registers() -> None:
+    env = {
+        "ESCROW_CONTRACT_MODE": "split",
+        "ESCROW_COURT_ADDRESS": "0x" + "1" * 40,
+        "ESCROW_VAULT_ADDRESS": "0x" + "2" * 40,
+        "ESCROW_JUDGE_REGISTRY_ADDRESS": "0x" + "3" * 40,
+    }
+    with patch.dict(os.environ, env, clear=False):
+        client = EscrowClient(
+            rpc_url="https://rpc.testnet3.goat.network",
+            chain_id=48816,
+            contract_address="0x" + "1" * 40,
+            private_key="0x" + "4" * 64,
+            dry_run=True,
+        )
+
+    client.dry_run = False
+    client.asset_contract = SimpleNamespace(functions=_FakeERC20Functions(allowance=0))
+    client.vault_contract = SimpleNamespace(functions=_FakeVaultTxFunctions())
+    client.registry_contract = SimpleNamespace(functions=_FakeRegistryTxFunctions())
+
+    sent_calls: list[tuple] = []
+
+    def fake_send(fn_call, *, value: int = 0):
+        sent_calls.append(fn_call)
+        idx = len(sent_calls)
+        return EscrowTxResult(tx_hash=f"0x{idx:064x}", block_number=idx, status=1)
+
+    client._send_tx = fake_send  # type: ignore[method-assign]
+
+    result = client.register_judge(
+        fee=25,
+        endpoint="https://judge.example",
+        max_response_time=60,
+        bond_amount=25,
+    )
+
+    assert sent_calls[0][0] == "approve"
+    assert sent_calls[1] == ("deposit", 25)
+    assert sent_calls[2] == ("moveToBond", 25)
+    assert sent_calls[3] == (
+        "registerJudge",
+        "0x" + "0" * 40,
+        25,
+        "https://judge.example",
+        60,
+    )
+    assert result.extra == {
+        "judge": client.account.address,
+        "superior": "0x" + "0" * 40,
+        "fee": 25,
+        "bondAmount": 25,
+        "approveTxHash": "0x" + "1".zfill(64),
+        "depositTxHash": "0x" + "2".zfill(64),
+        "bondMoveTxHash": "0x" + "3".zfill(64),
+    }

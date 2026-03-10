@@ -14,7 +14,9 @@ def test_mcp_server_initialize_and_list_tools() -> None:
     assert tools is not None
     names = {tool["name"] for tool in tools["result"]["tools"]}
     assert "create_agreement" in names
+    assert "complete_agreement" in names
     assert "anchor_agreement" in names
+    assert "register_judge" in names
 
 
 def test_mcp_server_returns_tool_error_payload_for_bad_actor() -> None:

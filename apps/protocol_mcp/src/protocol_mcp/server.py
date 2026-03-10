@@ -65,6 +65,33 @@ class VerdictMCPServer:
                 },
             },
             {
+                "name": "complete_agreement",
+                "description": "Complete a split Court agreement.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"actor": {"type": "string"}, "contractId": {"type": "integer"}},
+                    "required": ["actor", "contractId"],
+                    "additionalProperties": False,
+                },
+            },
+            {
+                "name": "register_judge",
+                "description": "Register a judge in the split JudgeRegistry.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "actor": {"type": "string"},
+                        "superior": {"type": "string"},
+                        "fee": {"type": "integer"},
+                        "endpoint": {"type": "string"},
+                        "maxResponseTime": {"type": "integer"},
+                        "bondAmount": {"type": "integer"},
+                    },
+                    "required": ["actor"],
+                    "additionalProperties": False,
+                },
+            },
+            {
                 "name": "anchor_agreement",
                 "description": "Build, pin, and anchor the agreement evidence bundle.",
                 "inputSchema": {
@@ -184,6 +211,40 @@ class VerdictMCPServer:
                     "txHash": tx.tx_hash,
                     "blockNumber": tx.block_number,
                     "contractId": (tx.extra or {}).get("contractId"),
+                }
+            )
+
+        if name == "complete_agreement":
+            client = self._escrow_for_actor(arguments["actor"])
+            tx = client.complete_agreement(int(arguments["contractId"]))
+            return _tool_result(
+                {
+                    "txHash": tx.tx_hash,
+                    "blockNumber": tx.block_number,
+                    "contractId": (tx.extra or {}).get("contractId"),
+                }
+            )
+
+        if name == "register_judge":
+            client = self._escrow_for_actor(arguments["actor"])
+            tx = client.register_judge(
+                superior=arguments.get("superior"),
+                fee=int(arguments.get("fee", 0) or 0),
+                endpoint=str(arguments.get("endpoint", "") or ""),
+                max_response_time=int(arguments.get("maxResponseTime", 300) or 300),
+                bond_amount=arguments.get("bondAmount"),
+            )
+            return _tool_result(
+                {
+                    "txHash": tx.tx_hash,
+                    "blockNumber": tx.block_number,
+                    "judge": (tx.extra or {}).get("judge"),
+                    "superior": (tx.extra or {}).get("superior"),
+                    "fee": (tx.extra or {}).get("fee"),
+                    "bondAmount": (tx.extra or {}).get("bondAmount"),
+                    "approveTxHash": (tx.extra or {}).get("approveTxHash"),
+                    "depositTxHash": (tx.extra or {}).get("depositTxHash"),
+                    "bondMoveTxHash": (tx.extra or {}).get("bondMoveTxHash"),
                 }
             )
 

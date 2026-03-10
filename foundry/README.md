@@ -49,6 +49,8 @@ forge script script/Deploy.s.sol:Deploy --broadcast
 - `main` now has an initial protocol bridge for split mode:
   - `EscrowClient` can target `Court`, `Vault`, and `JudgeRegistry`
   - `EscrowClient` can also target `EvidenceAnchor` via `ESCROW_EVIDENCE_ANCHOR_ADDRESS`
+  - split-mode vault deposits can auto-approve the underlying USDC before bonding
+  - `EscrowClient.register_judge(...)` can pre-bond and register judges for the split registry
   - consumer flows can propose and accept Court contracts before filing disputes
   - judge service can resolve the assigned judge per dispute
 - evidence service can pin canonical evidence bundles and anchor their hashes on-chain when `EvidenceAnchor` is deployed

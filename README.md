@@ -101,9 +101,11 @@ To exercise the new Foundry v3 contract layout instead, set:
 Current split-mode behavior on `main`:
 
 - consumer flows can create and accept `Court` contracts and carry the Court contract ID into disputes
+- split-mode deposits now auto-approve the Vault’s USDC spend before moving funds into bond
+- `EscrowClient.register_judge(...)` can pre-bond a judge and register it against `JudgeRegistry`
 - judge service can resolve the assigned judge per dispute instead of relying on one global judge address
 - evidence service can build and pin canonical evidence bundles, then anchor the Merkle root plus bundle hash through `EvidenceAnchor` when configured
-- `apps/protocol_mcp` exposes the protocol as MCP tools over stdio for agent runtimes
+- `apps/protocol_mcp` exposes the protocol as MCP tools over stdio for agent runtimes, including `register_judge` and `complete_agreement`
 
 Current split-mode limitation:
 
