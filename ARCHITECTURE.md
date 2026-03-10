@@ -31,7 +31,11 @@ In plain terms:
 
 ## Architecture At A Glance
 
-![System map](docs/diagrams/system-map.svg)
+<img
+  src="https://raw.githubusercontent.com/Ayush10/escrow/main/docs/diagrams/system-map.svg"
+  alt="System map"
+  width="100%"
+/>
 
 ## Core Components
 
@@ -172,7 +176,11 @@ This is the cleaner architecture and the better long-term protocol shape:
 
 This is the normal paid AI-service transaction with no dispute.
 
-![Happy path](docs/diagrams/happy-path.svg)
+<img
+  src="https://raw.githubusercontent.com/Ayush10/escrow/main/docs/diagrams/happy-path.svg"
+  alt="Happy path"
+  width="100%"
+/>
 
 ### What matters on the happy path
 
@@ -185,7 +193,11 @@ This is the normal paid AI-service transaction with no dispute.
 
 This is the important product path.
 
-![Dispute path](docs/diagrams/dispute-path.svg)
+<img
+  src="https://raw.githubusercontent.com/Ayush10/escrow/main/docs/diagrams/dispute-path.svg"
+  alt="Dispute path"
+  width="100%"
+/>
 
 ### What matters on the dispute path
 
@@ -198,7 +210,11 @@ This is the important product path.
 
 This is the cleanest way to understand contract behavior.
 
-![Contract lifecycle](docs/diagrams/contract-lifecycle.svg)
+<img
+  src="https://raw.githubusercontent.com/Ayush10/escrow/main/docs/diagrams/contract-lifecycle.svg"
+  alt="Contract lifecycle"
+  width="100%"
+/>
 
 ## Judge Hierarchy
 
