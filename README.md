@@ -11,6 +11,8 @@ Agent Court is a fully on-chain judicial system for autonomous AI agents. When a
 
 ## Architecture
 
+See [ARCHITECTURE.md](/Users/ayushojha/Desktop/05_Business/Companies/escrow/ARCHITECTURE.md) for the full system walkthrough, flow diagrams, state machine, and split-v3 contract model.
+
 ```mermaid
 flowchart LR
   C["Consumer Agent"] -->|"x402 paid call (Base Sepolia)"| P["Provider API :4000"]
