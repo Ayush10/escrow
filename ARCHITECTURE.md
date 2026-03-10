@@ -37,6 +37,39 @@ In plain terms:
   width="100%"
 />
 
+### Extended System Map
+
+```mermaid
+flowchart LR
+    CA["Consumer Agent"] --> MCP["Protocol MCP / SDK"]
+    PA["Provider Agent or Paid API"] --> MCP
+    OP["Operator Console"] --> DR["Demo Runner / Orchestrator"]
+
+    MCP --> PC["Protocol Client"]
+    DR --> PC
+
+    CA --> X402["x402 Payment Flow"]
+    X402 --> PA
+
+    CA --> ES["Evidence Service"]
+    PA --> ES
+    ES --> IPFS["IPFS / Bundle Store"]
+    ES --> EA["EvidenceAnchor.sol"]
+
+    PC --> CO["Court.sol"]
+    PC --> VA["Vault.sol"]
+    PC --> JR["JudgeRegistry.sol"]
+
+    CO --> JS["Judge Service"]
+    JS --> ES
+    JS --> CO
+    JS --> REP["Reputation Service"]
+
+    OP --> ES
+    OP --> JS
+    OP --> REP
+```
+
 ## Core Components
 
 ### Agent-facing layer
@@ -182,6 +215,37 @@ This is the normal paid AI-service transaction with no dispute.
   width="100%"
 />
 
+### Extended Happy Path
+
+```mermaid
+sequenceDiagram
+    participant CA as Consumer Agent
+    participant MCP as Protocol MCP / SDK
+    participant VA as Vault
+    participant CO as Court
+    participant PA as Provider API
+    participant ES as Evidence Service
+    participant IPFS as IPFS / Bundle Store
+    participant EA as EvidenceAnchor
+
+    CA->>MCP: create agreement
+    MCP->>VA: deposit or post bond
+    MCP->>CO: propose contract
+    MCP->>CO: accept contract
+
+    CA->>ES: create clause
+    CA->>ES: request receipt
+    CA->>PA: paid API call
+    PA-->>CA: response
+    PA->>ES: response receipt
+    CA->>ES: payment receipt
+
+    ES->>IPFS: store bundle
+    ES->>EA: commit rootHash + bundleHash + bundleCid
+
+    MCP->>CO: complete agreement
+```
+
 ### What matters on the happy path
 
 - money is locked before trust-sensitive work starts
@@ -199,6 +263,32 @@ This is the important product path.
   width="100%"
 />
 
+### Extended Dispute Path
+
+```mermaid
+sequenceDiagram
+    participant CA as Consumer Agent
+    participant MCP as Protocol MCP / SDK
+    participant CO as Court
+    participant ES as Evidence Service
+    participant JR as JudgeRegistry
+    participant JS as Judge Service
+    participant REP as Reputation Service
+
+    CA->>MCP: file dispute
+    MCP->>CO: dispute(contractId)
+    CA->>CO: submit evidence hash if needed
+    ES->>CO: anchor already exists for bundle
+
+    CO->>JS: dispute becomes processable
+    JS->>CO: read dispute + assigned judge
+    JS->>ES: fetch clause + receipts + anchor
+    JS->>JS: verify receipt chain and evidence root
+    JS->>JS: apply deterministic SLA checks
+    JS->>CO: submit signed ruling
+    JS->>REP: publish outcome
+```
+
 ### What matters on the dispute path
 
 - the ruling is based on pre-anchored evidence, not screenshots or ad hoc claims
@@ -206,15 +296,36 @@ This is the important product path.
 - the verdict package is hashable, signed, and reusable for audit
 - the on-chain ruling and off-chain verdict package stay linked
 
-## Court State Machine
+## Contract Lifecycle
 
-This is the cleanest way to understand contract behavior.
+This is the cleanest way to understand contract behavior as a state machine.
 
 <img
   src="https://raw.githubusercontent.com/Ayush10/escrow/main/docs/diagrams/contract-lifecycle.svg"
   alt="Contract lifecycle"
   width="100%"
 />
+
+### Extended Contract Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Proposed
+
+    Proposed --> Active: accept
+    Proposed --> Canceled: cancel
+
+    Active --> Completed: complete
+    Active --> CompletionRequested: request completion
+    Active --> Disputed: dispute
+
+    CompletionRequested --> Completed: finalize completion
+    CompletionRequested --> Disputed: dispute
+
+    Disputed --> Resolved: judge rules
+    Resolved --> Completed: finalize ruling
+    Resolved --> Disputed: appeal or escalation
+```
 
 ## Judge Hierarchy
 
