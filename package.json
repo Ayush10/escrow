@@ -14,6 +14,7 @@
     "dev:reputation": "bash ./scripts/run_module.sh reputation_service.api",
     "dev:provider": "bash ./scripts/run_module.sh provider_api.server",
     "dev:runner": "bash ./scripts/run_module.sh demo_runner.server",
+    "dev:mcp": "uv run python -m protocol_mcp.server",
     "dev:frontend": "python3 -m http.server 4173 --directory console",
     "test": "uv run pytest"
   }

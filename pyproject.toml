@@ -31,6 +31,7 @@ members = [
   "apps/provider_api",
   "apps/consumer_agent",
   "apps/demo_runner",
+  "apps/protocol_mcp",
 ]
 
 [tool.uv.sources]
@@ -41,6 +42,7 @@ reputation-service = { workspace = true }
 provider-api = { workspace = true }
 consumer-agent = { workspace = true }
 demo-runner = { workspace = true }
+protocol-mcp = { workspace = true }
 
 [tool.pytest.ini_options]
 minversion = "8.0"
@@ -53,6 +55,7 @@ pythonpath = [
   "apps/provider_api/src",
   "apps/consumer_agent/src",
   "apps/demo_runner/src",
+  "apps/protocol_mcp/src",
 ]
 testpaths = [
   "packages/protocol/tests",
@@ -61,6 +64,7 @@ testpaths = [
   "apps/reputation_service/tests",
   "apps/provider_api/tests",
   "apps/consumer_agent/tests",
+  "apps/protocol_mcp/tests",
 ]
 
 [tool.ruff]

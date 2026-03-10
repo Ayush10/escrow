@@ -5,6 +5,7 @@ This workspace contains the split contract architecture for the next protocol it
 - `src/Vault.sol`: custody, deposits, bonds, and authorized fund movement
 - `src/JudgeRegistry.sol`: judge registration, superior-chain hierarchy, bonds, slashing, and response windows
 - `src/Court.sol`: contracts, disputes, evidence submission, appeals, completion flow, abandonment, and timeout escalation
+- `src/EvidenceAnchor.sol`: on-chain anchor for agreement root hashes and IPFS evidence bundle hashes
 
 ## Why it exists
 
@@ -47,7 +48,8 @@ forge script script/Deploy.s.sol:Deploy --broadcast
 - Judge timeout slashing now transfers the slashed amount to `charity` instead of leaving it stranded in vault accounting.
 - `main` now has an initial protocol bridge for split mode:
   - `EscrowClient` can target `Court`, `Vault`, and `JudgeRegistry`
+  - `EscrowClient` can also target `EvidenceAnchor` via `ESCROW_EVIDENCE_ANCHOR_ADDRESS`
   - consumer flows can propose and accept Court contracts before filing disputes
   - judge service can resolve the assigned judge per dispute
-- Evidence roots are still stored off-chain first in split mode because there is no dedicated anchor contract yet.
+- evidence service can pin canonical evidence bundles and anchor their hashes on-chain when `EvidenceAnchor` is deployed
 - Full app cutover is not complete; the legacy monolithic contract remains the default runtime target.

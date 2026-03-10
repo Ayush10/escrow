@@ -53,6 +53,7 @@ class EvidenceStorage:
               agreement_id TEXT NOT NULL,
               root_hash TEXT NOT NULL,
               tx_hash TEXT NOT NULL,
+              metadata_json TEXT NOT NULL DEFAULT '{}',
               receipt_ids_json TEXT NOT NULL,
               created_at INTEGER NOT NULL DEFAULT (unixepoch())
             );
@@ -64,7 +65,17 @@ class EvidenceStorage:
               ON anchors(root_hash);
             """
         )
+        self._ensure_column("anchors", "metadata_json", "TEXT NOT NULL DEFAULT '{}'")
         self.conn.commit()
+
+    def _ensure_column(self, table: str, column: str, definition: str) -> None:
+        cols = {
+            str(row["name"])
+            for row in self.conn.execute(f"PRAGMA table_info({table})").fetchall()
+        }
+        if column in cols:
+            return
+        self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
     def store_clause(self, clause: dict[str, Any]) -> None:
         self.conn.execute(
@@ -188,19 +199,23 @@ class EvidenceStorage:
         root_hash: str,
         tx_hash: str | None,
         receipt_ids: list[str],
+        *,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
+        metadata = metadata or {}
         self.conn.execute(
             """
             INSERT OR REPLACE INTO anchors
-              (id, agreement_id, root_hash, tx_hash, receipt_ids_json)
+              (id, agreement_id, root_hash, tx_hash, metadata_json, receipt_ids_json)
             VALUES
-              ((SELECT id FROM anchors WHERE agreement_id = ?), ?, ?, ?, ?)
+              ((SELECT id FROM anchors WHERE agreement_id = ?), ?, ?, ?, ?, ?)
             """,
             (
                 agreement_id,
                 agreement_id,
                 root_hash,
                 tx_hash or "",
+                json.dumps(metadata, separators=(",", ":")),
                 json.dumps(receipt_ids, separators=(",", ":")),
             ),
         )
@@ -208,30 +223,40 @@ class EvidenceStorage:
 
     def get_anchor(self, agreement_id: str) -> dict[str, Any] | None:
         row = self.conn.execute(
-            "SELECT root_hash, tx_hash, receipt_ids_json FROM anchors WHERE agreement_id = ?",
+            "SELECT root_hash, tx_hash, metadata_json, receipt_ids_json FROM anchors WHERE agreement_id = ?",
             (agreement_id,),
         ).fetchone()
         if not row:
             return None
+        metadata = json.loads(row["metadata_json"] or "{}")
         return {
             "agreementId": agreement_id,
             "rootHash": row["root_hash"],
             "txHash": row["tx_hash"] or None,
-            "anchorMode": "onchain" if row["tx_hash"] else "offchain_bundle",
+            "anchorMode": metadata.get("anchorMode", "onchain" if row["tx_hash"] else "offchain_bundle"),
+            "bundleCid": metadata.get("bundleCid"),
+            "bundleHash": metadata.get("bundleHash"),
+            "bundleUri": metadata.get("bundleUri"),
+            "pinMode": metadata.get("pinMode"),
             "receiptIds": json.loads(row["receipt_ids_json"]),
         }
 
     def get_anchor_by_root(self, root_hash: str) -> dict[str, Any] | None:
         row = self.conn.execute(
-            "SELECT agreement_id, tx_hash, receipt_ids_json FROM anchors WHERE root_hash = ?",
+            "SELECT agreement_id, tx_hash, metadata_json, receipt_ids_json FROM anchors WHERE root_hash = ?",
             (root_hash,),
         ).fetchone()
         if not row:
             return None
+        metadata = json.loads(row["metadata_json"] or "{}")
         return {
             "agreementId": row["agreement_id"],
             "rootHash": root_hash,
             "txHash": row["tx_hash"] or None,
-            "anchorMode": "onchain" if row["tx_hash"] else "offchain_bundle",
+            "anchorMode": metadata.get("anchorMode", "onchain" if row["tx_hash"] else "offchain_bundle"),
+            "bundleCid": metadata.get("bundleCid"),
+            "bundleHash": metadata.get("bundleHash"),
+            "bundleUri": metadata.get("bundleUri"),
+            "pinMode": metadata.get("pinMode"),
             "receiptIds": json.loads(row["receipt_ids_json"]),
         }

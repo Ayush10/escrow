@@ -225,6 +225,30 @@ class _FakeRegistryContract:
         self.functions = _FakeRegistryFunctions(judge)
 
 
+class _FakeEvidenceAnchorEvents:
+    def __init__(self):
+        self.EvidenceCommitted = _FakeEvent(
+            [
+                {
+                    "args": {
+                        "agreementId": "agreement-7",
+                        "rootHash": bytes.fromhex("cc" * 32),
+                        "bundleHash": bytes.fromhex("dd" * 32),
+                        "bundleCid": "ipfs://bafy-test",
+                        "submitter": "0x" + "5" * 40,
+                    },
+                    "blockNumber": 22,
+                    "transactionHash": "0xghi",
+                }
+            ]
+        )
+
+
+class _FakeEvidenceAnchorContract:
+    def __init__(self):
+        self.events = _FakeEvidenceAnchorEvents()
+
+
 def test_escrow_client_split_mode_reports_capabilities_and_synthesizes_disputes() -> None:
     with tempfile.TemporaryDirectory() as td:
         env = {
@@ -343,6 +367,7 @@ def test_escrow_client_split_mode_synthesizes_events_and_disputes() -> None:
         winner=winner,
     )
     client.registry_contract = _FakeRegistryContract(judge)
+    client.evidence_anchor_contract = _FakeEvidenceAnchorContract()
 
     dispute = client.get_dispute(7)
     assert dispute is not None
@@ -359,8 +384,52 @@ def test_escrow_client_split_mode_synthesizes_events_and_disputes() -> None:
 
     dispute_events = client.poll_events("DisputeFiled", from_block=0)
     ruling_events = client.poll_events("RulingSubmitted", from_block=0)
+    evidence_events = client.poll_events("EvidenceCommitted", from_block=0)
 
     assert dispute_events[0]["args"]["disputeId"] == 7
     assert dispute_events[0]["args"]["defendant"] == defendant
     assert ruling_events[0]["args"]["winner"] == plaintiff
     assert ruling_events[0]["args"]["loser"] == defendant
+    assert evidence_events[0]["args"]["agreementId"] == "agreement-7"
+    assert evidence_events[0]["args"]["bundleCid"] == "ipfs://bafy-test"
+
+
+def test_escrow_client_split_mode_dry_run_anchor_is_idempotent_with_bundle_metadata() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        env = {
+            "ESCROW_MOCK_DB_PATH": f"{td}/escrow_mock.db",
+            "ESCROW_CONTRACT_MODE": "split",
+            "ESCROW_COURT_ADDRESS": "0x" + "1" * 40,
+            "ESCROW_VAULT_ADDRESS": "0x" + "2" * 40,
+            "ESCROW_JUDGE_REGISTRY_ADDRESS": "0x" + "3" * 40,
+            "ESCROW_EVIDENCE_ANCHOR_ADDRESS": "0x" + "4" * 40,
+        }
+        with patch.dict(os.environ, env, clear=False):
+            client = EscrowClient(
+                rpc_url="https://rpc.testnet3.goat.network",
+                chain_id=48816,
+                contract_address="0x" + "1" * 40,
+                private_key="0x" + "1" * 64,
+                dry_run=True,
+            )
+
+            first = client.commit_evidence_hash(
+                "agreement-1",
+                "0x" + "a" * 64,
+                bundle_hash="0x" + "b" * 64,
+                bundle_cid="ipfs://bafy-bundle",
+            )
+            second = client.commit_evidence_hash(
+                "agreement-1",
+                "0x" + "a" * 64,
+                bundle_hash="0x" + "b" * 64,
+                bundle_cid="ipfs://bafy-bundle",
+            )
+
+            assert client.capabilities()["commitEvidenceHash"] is True
+            assert second.extra == {"idempotent": True}
+            assert second.tx_hash == first.tx_hash
+
+            evidence_events = client.poll_events("EvidenceCommitted", from_block=0)
+            assert evidence_events[0]["args"]["bundleHash"] == "0x" + "b" * 64
+            assert evidence_events[0]["args"]["bundleCid"] == "ipfs://bafy-bundle"

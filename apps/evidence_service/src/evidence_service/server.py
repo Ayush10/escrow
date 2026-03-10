@@ -4,7 +4,7 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from verdict_protocol import EscrowClient
+from verdict_protocol import EscrowClient, EvidenceBundleStore
 
 from .routes import router
 from .server_state import ServerState
@@ -30,8 +30,9 @@ def create_app() -> FastAPI:
         private_key=os.environ.get("PROVIDER_PRIVATE_KEY") or None,
         dry_run=os.environ.get("ESCROW_DRY_RUN", "0") == "1",
     )
+    bundle_store = EvidenceBundleStore()
 
-    app.state.server_state = ServerState(storage=storage, escrow=escrow)
+    app.state.server_state = ServerState(storage=storage, escrow=escrow, bundle_store=bundle_store)
     app.include_router(router)
 
     @app.get("/health")

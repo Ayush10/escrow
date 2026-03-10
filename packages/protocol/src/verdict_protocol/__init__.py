@@ -8,6 +8,7 @@ from .hashing import (
     keccak_hex,
     merkle_root_hash,
 )
+from .ipfs import EvidenceBundleStore, StoredBundle
 from .receipt_chain import ReceiptChainResult, verify_receipt_chain
 from .schema_validation import validate_schema
 from .signatures import (
@@ -34,6 +35,8 @@ __all__ = [
     "compute_receipt_hash",
     "compute_verdict_hash",
     "merkle_root_hash",
+    "EvidenceBundleStore",
+    "StoredBundle",
     "sign_hash_eip191",
     "recover_signer_eip191",
     "verify_signature_eip191",

@@ -7,6 +7,13 @@ from fastapi.testclient import TestClient
 from verdict_protocol import compute_clause_hash, compute_receipt_hash, hash_canonical, sign_hash_eip191
 
 
+def _set_test_env(td: str) -> None:
+    os.environ["SQLITE_PATH"] = f"{td}/ev.db"
+    os.environ["ESCROW_DRY_RUN"] = "1"
+    os.environ["ESCROW_CONTRACT_ADDRESS"] = "0x" + "1" * 40
+    os.environ["IPFS_LOCAL_STORE_PATH"] = f"{td}/ipfs"
+
+
 def _make_clause(agreement_id: str) -> dict[str, object]:
     clause = {
         "schemaVersion": "1.0.0",
@@ -67,9 +74,7 @@ def _make_receipt(
 
 def test_receipt_ingest_and_anchor() -> None:
     with tempfile.TemporaryDirectory() as td:
-        os.environ["SQLITE_PATH"] = f"{td}/ev.db"
-        os.environ["ESCROW_DRY_RUN"] = "1"
-        os.environ["ESCROW_CONTRACT_ADDRESS"] = "0x" + "1" * 40
+        _set_test_env(td)
 
         from evidence_service.server import create_app
 
@@ -104,9 +109,7 @@ def test_receipt_ingest_and_anchor() -> None:
 
 def test_agreement_export_returns_complete_bundle() -> None:
     with tempfile.TemporaryDirectory() as td:
-        os.environ["SQLITE_PATH"] = f"{td}/ev.db"
-        os.environ["ESCROW_DRY_RUN"] = "1"
-        os.environ["ESCROW_CONTRACT_ADDRESS"] = "0x" + "1" * 40
+        _set_test_env(td)
 
         from evidence_service.server import create_app
 
@@ -146,9 +149,7 @@ def test_agreement_export_returns_complete_bundle() -> None:
 
 def test_receipt_post_is_idempotent_for_same_logical_receipt() -> None:
     with tempfile.TemporaryDirectory() as td:
-        os.environ["SQLITE_PATH"] = f"{td}/ev.db"
-        os.environ["ESCROW_DRY_RUN"] = "1"
-        os.environ["ESCROW_CONTRACT_ADDRESS"] = "0x" + "1" * 40
+        _set_test_env(td)
 
         from evidence_service.server import create_app
 
@@ -195,9 +196,7 @@ def test_receipt_post_is_idempotent_for_same_logical_receipt() -> None:
 
 def test_anchor_post_is_idempotent_and_rejects_conflicting_reanchor() -> None:
     with tempfile.TemporaryDirectory() as td:
-        os.environ["SQLITE_PATH"] = f"{td}/ev.db"
-        os.environ["ESCROW_DRY_RUN"] = "1"
-        os.environ["ESCROW_CONTRACT_ADDRESS"] = "0x" + "1" * 40
+        _set_test_env(td)
 
         from evidence_service.server import create_app
 
@@ -254,9 +253,7 @@ def test_anchor_falls_back_to_offchain_bundle_in_split_mode() -> None:
             return {"deploymentMode": "split"}
 
     with tempfile.TemporaryDirectory() as td:
-        os.environ["SQLITE_PATH"] = f"{td}/ev.db"
-        os.environ["ESCROW_DRY_RUN"] = "1"
-        os.environ["ESCROW_CONTRACT_ADDRESS"] = "0x" + "1" * 40
+        _set_test_env(td)
 
         from evidence_service.server import create_app
 
@@ -285,10 +282,83 @@ def test_anchor_falls_back_to_offchain_bundle_in_split_mode() -> None:
         payload = anchor_resp.json()
         assert payload["anchorMode"] == "offchain_bundle"
         assert payload["txHash"] is None
+        assert payload["bundleCid"].startswith("bafy")
+        assert payload["bundleHash"].startswith("0x")
 
         export_resp = client.get(f"/agreements/{agreement_id}/export")
         assert export_resp.status_code == 200
         export_payload = export_resp.json()
         assert export_payload["anchor"]["anchorMode"] == "offchain_bundle"
+        assert export_payload["anchor"]["bundleCid"].startswith("bafy")
         assert export_payload["integrity"]["rootAnchored"] is True
         assert export_payload["integrity"]["rootCommittedOnChain"] is False
+        assert export_payload["integrity"]["bundlePinned"] is True
+
+
+def test_anchor_pins_bundle_and_commits_onchain_when_split_anchor_exists() -> None:
+    class _Tx:
+        tx_hash = "0x" + "9" * 64
+
+    class FakeSplitEscrow:
+        def __init__(self) -> None:
+            self.commits: list[dict[str, str]] = []
+
+        def capabilities(self) -> dict[str, bool]:
+            return {"commitEvidenceHash": True}
+
+        def contract_sanity(self) -> dict[str, object]:
+            return {"deploymentMode": "split"}
+
+        def commit_evidence_hash(
+            self,
+            agreement_id: str,
+            root_hash: str,
+            *,
+            bundle_hash: str | None = None,
+            bundle_cid: str | None = None,
+        ) -> _Tx:
+            self.commits.append(
+                {
+                    "agreementId": agreement_id,
+                    "rootHash": root_hash,
+                    "bundleHash": bundle_hash or "",
+                    "bundleCid": bundle_cid or "",
+                }
+            )
+            return _Tx()
+
+    with tempfile.TemporaryDirectory() as td:
+        _set_test_env(td)
+
+        from evidence_service.server import create_app
+
+        app = create_app()
+        fake = FakeSplitEscrow()
+        app.state.server_state.escrow = fake
+        client = TestClient(app)
+
+        account_a = Account.create()
+        account_b = Account.create()
+        agreement_id = str(uuid.uuid4())
+        clause = _make_clause(agreement_id)
+        assert client.post("/clauses", json=clause).status_code == 200
+
+        receipt = _make_receipt(
+            account_a=account_a,
+            account_b=account_b,
+            agreement_id=agreement_id,
+            clause_hash=clause["clauseHash"],
+            sequence=0,
+            payload={"x": 1},
+        )
+        assert client.post("/receipts", json=receipt).status_code == 200
+
+        anchor_resp = client.post("/anchor", json={"agreementId": agreement_id})
+        assert anchor_resp.status_code == 200
+        payload = anchor_resp.json()
+        assert payload["anchorMode"] == "ipfs_onchain"
+        assert payload["txHash"] == "0x" + "9" * 64
+        assert payload["bundleCid"].startswith("bafy")
+        assert payload["bundleUri"].startswith("ipfs://")
+        assert fake.commits
+        assert fake.commits[0]["bundleCid"] == payload["bundleUri"]

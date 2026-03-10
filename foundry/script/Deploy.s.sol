@@ -5,6 +5,7 @@ import "forge-std/Script.sol";
 import "../src/Vault.sol";
 import "../src/JudgeRegistry.sol";
 import "../src/Court.sol";
+import "../src/EvidenceAnchor.sol";
 
 contract Deploy is Script {
     function run() external {
@@ -17,6 +18,7 @@ contract Deploy is Script {
         Vault vault = new Vault(usdc);
         JudgeRegistry registry = new JudgeRegistry(address(vault));
         Court court = new Court(address(vault), address(registry), charity);
+        EvidenceAnchor evidenceAnchor = new EvidenceAnchor();
 
         // 2. Authorize
         vault.authorize(address(registry));
@@ -32,5 +34,6 @@ contract Deploy is Script {
         console.log("Vault:", address(vault));
         console.log("JudgeRegistry:", address(registry));
         console.log("Court:", address(court));
+        console.log("EvidenceAnchor:", address(evidenceAnchor));
     }
 }

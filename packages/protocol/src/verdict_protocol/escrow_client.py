@@ -205,6 +205,46 @@ SPLIT_REGISTRY_ABI: list[dict[str, Any]] = [
     },
 ]
 
+SPLIT_EVIDENCE_ANCHOR_ABI: list[dict[str, Any]] = [
+    {
+        "type": "function",
+        "name": "commitEvidence",
+        "stateMutability": "nonpayable",
+        "inputs": [
+            {"name": "agreementId", "type": "string"},
+            {"name": "rootHash", "type": "bytes32"},
+            {"name": "bundleHash", "type": "bytes32"},
+            {"name": "bundleCid", "type": "string"},
+        ],
+        "outputs": [],
+    },
+    {
+        "type": "function",
+        "name": "getAnchor",
+        "stateMutability": "view",
+        "inputs": [{"name": "agreementId", "type": "string"}],
+        "outputs": [
+            {"type": "bytes32"},
+            {"type": "bytes32"},
+            {"type": "string"},
+            {"type": "address"},
+            {"type": "uint256"},
+        ],
+    },
+    {
+        "type": "event",
+        "name": "EvidenceCommitted",
+        "anonymous": False,
+        "inputs": [
+            {"indexed": False, "name": "agreementId", "type": "string"},
+            {"indexed": True, "name": "rootHash", "type": "bytes32"},
+            {"indexed": True, "name": "bundleHash", "type": "bytes32"},
+            {"indexed": False, "name": "bundleCid", "type": "string"},
+            {"indexed": True, "name": "submitter", "type": "address"},
+        ],
+    },
+]
+
 
 def _maybe_checksum_address(value: str | None) -> str | None:
     if not value:
@@ -265,8 +305,10 @@ class EscrowClient:
         self.deployment_mode = "legacy"
         self.vault_address: str | None = None
         self.registry_address: str | None = None
+        self.evidence_anchor_address: str | None = None
         self.vault_contract = None
         self.registry_contract = None
+        self.evidence_anchor_contract = None
 
         split_requested = (
             os.environ.get("ESCROW_CONTRACT_MODE", "").lower() == "split"
@@ -285,6 +327,9 @@ class EscrowClient:
             self.registry_address = _maybe_checksum_address(
                 os.environ.get("ESCROW_JUDGE_REGISTRY_ADDRESS") or os.environ.get("ESCROW_REGISTRY_ADDRESS")
             )
+            self.evidence_anchor_address = _maybe_checksum_address(
+                os.environ.get("ESCROW_EVIDENCE_ANCHOR_ADDRESS")
+            )
             self.abi = SPLIT_COURT_ABI
             self.contract = self.w3.eth.contract(address=self.contract_address, abi=SPLIT_COURT_ABI)
             self.vault_contract = (
@@ -297,9 +342,20 @@ class EscrowClient:
                 if self.registry_address
                 else None
             )
-            combined_abi = SPLIT_COURT_ABI + SPLIT_VAULT_ABI + SPLIT_REGISTRY_ABI
+            self.evidence_anchor_contract = (
+                self.w3.eth.contract(address=self.evidence_anchor_address, abi=SPLIT_EVIDENCE_ANCHOR_ABI)
+                if self.evidence_anchor_address
+                else None
+            )
+            combined_abi = (
+                SPLIT_COURT_ABI + SPLIT_VAULT_ABI + SPLIT_REGISTRY_ABI + SPLIT_EVIDENCE_ANCHOR_ABI
+            )
             self.fn_index = {f["name"]: f for f in combined_abi if f.get("type") == "function"}
-            self.event_index = {e["name"]: e for e in SPLIT_COURT_ABI if e.get("type") == "event"}
+            self.event_index = {
+                e["name"]: e
+                for e in (SPLIT_COURT_ABI + SPLIT_EVIDENCE_ANCHOR_ABI)
+                if e.get("type") == "event"
+            }
         else:
             self.contract_address = to_checksum_address(contract_address)
             path = Path(abi_path) if abi_path else DEFAULT_ABI_PATH
@@ -316,6 +372,8 @@ class EscrowClient:
         self.registry_code_size = 0
         self.vault_has_code = False
         self.registry_has_code = False
+        self.evidence_anchor_code_size = 0
+        self.evidence_anchor_has_code = False
         if not self.dry_run:
             self.connected = self.w3.is_connected()
             code = self.w3.eth.get_code(self.contract_address)
@@ -330,6 +388,10 @@ class EscrowClient:
                     registry_code = self.w3.eth.get_code(self.registry_address)
                     self.registry_code_size = len(registry_code)
                     self.registry_has_code = self.registry_code_size > 0
+                if self.evidence_anchor_address:
+                    anchor_code = self.w3.eth.get_code(self.evidence_anchor_address)
+                    self.evidence_anchor_code_size = len(anchor_code)
+                    self.evidence_anchor_has_code = self.evidence_anchor_code_size > 0
 
         self._mock_conn: sqlite3.Connection | None = None
         if self.dry_run:
@@ -365,6 +427,8 @@ class EscrowClient:
             CREATE TABLE IF NOT EXISTS evidence_commits (
               agreement_id TEXT PRIMARY KEY,
               root_hash TEXT NOT NULL,
+              bundle_hash TEXT,
+              bundle_cid TEXT,
               tx_hash TEXT NOT NULL,
               block_number INTEGER NOT NULL
             );
@@ -486,7 +550,7 @@ class EscrowClient:
             return None
         return self._mock_conn.execute(
             """
-            SELECT agreement_id, root_hash, tx_hash, block_number
+            SELECT agreement_id, root_hash, bundle_hash, bundle_cid, tx_hash, block_number
             FROM evidence_commits
             WHERE agreement_id = ?
             """,
@@ -498,6 +562,8 @@ class EscrowClient:
         agreement_id: str,
         *,
         root_hash: str,
+        bundle_hash: str | None = None,
+        bundle_cid: str | None = None,
         tx_hash: str,
         block_number: int,
     ) -> None:
@@ -505,10 +571,11 @@ class EscrowClient:
             raise RuntimeError("mock db is not initialized")
         self._mock_conn.execute(
             """
-            INSERT OR REPLACE INTO evidence_commits (agreement_id, root_hash, tx_hash, block_number)
-            VALUES (?, ?, ?, ?)
+            INSERT OR REPLACE INTO evidence_commits
+              (agreement_id, root_hash, bundle_hash, bundle_cid, tx_hash, block_number)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (agreement_id, root_hash, tx_hash, int(block_number)),
+            (agreement_id, root_hash, bundle_hash, bundle_cid, tx_hash, int(block_number)),
         )
         self._mock_conn.commit()
 
@@ -776,12 +843,13 @@ class EscrowClient:
                 "splitContractSet": True,
                 "vaultConfigured": self.vault_contract is not None,
                 "judgeRegistryConfigured": self.registry_contract is not None,
+                "evidenceAnchorConfigured": self.evidence_anchor_contract is not None,
                 "createAgreement": True,
                 "acceptAgreement": True,
                 "completeAgreement": True,
                 "depositPool": self.vault_contract is not None,
                 "postBond": self.vault_contract is not None,
-                "commitEvidenceHash": False,
+                "commitEvidenceHash": self.evidence_anchor_contract is not None,
                 "commitEvidence": False,
                 "fileDispute": True,
                 "submitRuling": True,
@@ -819,10 +887,13 @@ class EscrowClient:
                     "courtAddress": self.contract_address,
                     "vaultAddress": self.vault_address,
                     "judgeRegistryAddress": self.registry_address,
+                    "evidenceAnchorAddress": self.evidence_anchor_address,
                     "vaultHasCode": self.vault_has_code,
                     "judgeRegistryHasCode": self.registry_has_code,
+                    "evidenceAnchorHasCode": self.evidence_anchor_has_code,
                     "vaultCodeSize": self.vault_code_size,
                     "judgeRegistryCodeSize": self.registry_code_size,
+                    "evidenceAnchorCodeSize": self.evidence_anchor_code_size,
                 }
             )
         return payload
@@ -1077,12 +1148,23 @@ class EscrowClient:
         tx.extra = {"contractId": int(contract_id)}
         return tx
 
-    def commit_evidence_hash(self, agreement_id: str, root_hash: str) -> EscrowTxResult:
+    def commit_evidence_hash(
+        self,
+        agreement_id: str,
+        root_hash: str,
+        *,
+        bundle_hash: str | None = None,
+        bundle_cid: str | None = None,
+    ) -> EscrowTxResult:
         if self.dry_run:
             existing = self._mock_get_evidence_commit(agreement_id)
             if existing is not None:
                 if existing["root_hash"] != root_hash:
                     raise ValueError("evidence already committed for agreement with different root_hash")
+                if bundle_hash and existing["bundle_hash"] and existing["bundle_hash"] != bundle_hash:
+                    raise ValueError("evidence already committed for agreement with different bundle_hash")
+                if bundle_cid and existing["bundle_cid"] and existing["bundle_cid"] != bundle_cid:
+                    raise ValueError("evidence already committed for agreement with different bundle_cid")
                 return EscrowTxResult(
                     tx_hash=existing["tx_hash"],
                     block_number=int(existing["block_number"]),
@@ -1099,6 +1181,8 @@ class EscrowClient:
                     "agreementId": agreement_id,
                     "rootHash": root_hash,
                     "agent": to_checksum_address(agent),
+                    "bundleHash": bundle_hash,
+                    "bundleCid": bundle_cid,
                 },
                 tx_hash=tx_hash,
                 block_number=block,
@@ -1106,16 +1190,27 @@ class EscrowClient:
             self._mock_store_evidence_commit(
                 agreement_id,
                 root_hash=root_hash,
+                bundle_hash=bundle_hash,
+                bundle_cid=bundle_cid,
                 tx_hash=tx_hash,
                 block_number=block,
             )
             return EscrowTxResult(tx_hash=tx_hash, block_number=block, status=1)
 
         if self.deployment_mode == "split":
-            raise RuntimeError(
-                "split contract mode does not implement on-chain evidence anchoring; "
-                "keep using legacy AgentCourt or add a dedicated anchor contract"
+            if self.evidence_anchor_contract is None:
+                raise RuntimeError(
+                    "split contract mode requires ESCROW_EVIDENCE_ANCHOR_ADDRESS for on-chain evidence anchoring"
+                )
+            if not bundle_hash or not bundle_cid:
+                raise ValueError("split contract mode requires bundle_hash and bundle_cid")
+            fn = self.evidence_anchor_contract.functions.commitEvidence(
+                agreement_id,
+                _coerce_bytes32(root_hash),
+                _coerce_bytes32(bundle_hash),
+                bundle_cid,
             )
+            return self._send_tx(fn)
 
         if "commitEvidenceHash" in self.fn_index:
             fn = self.contract.functions.commitEvidenceHash(agreement_id, root_hash)
@@ -1292,7 +1387,23 @@ class EscrowClient:
 
         if self.deployment_mode == "split":
             if event_name == "EvidenceCommitted":
-                return []
+                if self.evidence_anchor_contract is None:
+                    return []
+                event_obj = self.evidence_anchor_contract.events.EvidenceCommitted
+                flt = event_obj.create_filter(from_block=from_block, to_block=to_block)
+                logs: list[dict[str, Any]] = []
+                for log in flt.get_all_entries():
+                    entry = dict(log)
+                    args = dict(entry.get("args", {}))
+                    entry["args"] = {
+                        "agreementId": args.get("agreementId"),
+                        "rootHash": _hex_or_str(args.get("rootHash", bytes(32))),
+                        "agent": args.get("submitter", ZERO_ADDRESS),
+                        "bundleHash": _hex_or_str(args.get("bundleHash", bytes(32))),
+                        "bundleCid": args.get("bundleCid"),
+                    }
+                    logs.append(entry)
+                return logs
             if event_name == "DisputeFiled":
                 event_obj = self.contract.events.DisputeFiled
                 flt = event_obj.create_filter(from_block=from_block, to_block=to_block)

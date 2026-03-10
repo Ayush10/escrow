@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from fastapi import Request
-from verdict_protocol import EscrowClient
+from verdict_protocol import EscrowClient, EvidenceBundleStore
 
 from .storage import EvidenceStorage
 
@@ -12,6 +12,7 @@ from .storage import EvidenceStorage
 class ServerState:
     storage: EvidenceStorage
     escrow: EscrowClient
+    bundle_store: EvidenceBundleStore
 
 
 def get_state(request: Request) -> ServerState:

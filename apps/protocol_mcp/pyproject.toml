@@ -1,0 +1,18 @@
+[project]
+name = "protocol-mcp"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "httpx>=0.27.0",
+  "verdict-protocol",
+]
+
+[project.scripts]
+protocol-mcp = "protocol_mcp.server:main"
+
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/protocol_mcp"]

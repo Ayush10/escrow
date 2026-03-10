@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -45,6 +46,79 @@ def _same_logical_receipt(left: dict[str, Any], right: dict[str, Any]) -> bool:
     return _logical_receipt_fields(left) == _logical_receipt_fields(right)
 
 
+def _agreement_snapshot(agreement_id: str, state: ServerState) -> dict[str, Any]:
+    clause = state.storage.get_clause_by_agreement(agreement_id)
+    if not clause:
+        raise HTTPException(status_code=404, detail="clause not found")
+
+    receipts = state.storage.list_receipts(agreement_id=agreement_id)
+    anchor = state.storage.get_anchor(agreement_id)
+
+    chain_ok = True
+    chain_errors: list[str] = []
+    if receipts:
+        chain = verify_receipt_chain(receipts)
+        chain_ok = chain.ok
+        chain_errors = chain.errors
+
+    expected_root = None
+    root_match = None
+    if anchor:
+        expected_root = compute_anchor_root([r["receiptHash"] for r in receipts]) if receipts else "0x0"
+        root_match = expected_root == anchor["rootHash"]
+
+    return {
+        "agreementId": agreement_id,
+        "clause": clause,
+        "receipts": receipts,
+        "receiptCount": len(receipts),
+        "anchor": anchor,
+        "receiptChain": {
+            "valid": chain_ok,
+            "errors": chain_errors,
+        },
+        "root": {
+            "expected": expected_root,
+            "anchored": anchor["rootHash"] if anchor else None,
+            "matched": root_match,
+        },
+    }
+
+
+def _export_payload(agreement_id: str, state: ServerState) -> dict[str, Any]:
+    snapshot = _agreement_snapshot(agreement_id, state)
+    clause = snapshot["clause"]
+    receipts = snapshot["receipts"]
+    anchor = snapshot["anchor"]
+    chain_ok = snapshot["receiptChain"]["valid"]
+    chain_errors = snapshot["receiptChain"]["errors"]
+    root_match = snapshot["root"]["matched"]
+    return {
+        "schemaVersion": "1.0.0",
+        "exportType": "evidence_bundle",
+        "agreementId": agreement_id,
+        "clause": clause,
+        "receipts": receipts,
+        "receiptCount": len(receipts),
+        "anchor": anchor,
+        "receiptChain": {
+            "valid": chain_ok,
+            "errors": chain_errors,
+            "receiptHashes": [r["receiptHash"] for r in receipts],
+        },
+        "root": snapshot["root"],
+        "integrity": {
+            "clauseHash": clause.get("clauseHash"),
+            "clauseHashValid": clause.get("clauseHash") == compute_clause_hash(clause) if clause.get("clauseHash") else None,
+            "chainValid": chain_ok,
+            "rootAnchored": anchor is not None,
+            "rootCommittedOnChain": bool(anchor and anchor.get("txHash")),
+            "bundlePinned": bool(anchor and anchor.get("bundleCid")),
+            "rootMatched": root_match,
+        },
+    }
+
+
 @router.post("/clauses")
 def post_clause(payload: ArbitrationClause, state: ServerState = Depends(get_state)) -> dict[str, Any]:
     clause = payload.model_dump()
@@ -79,94 +153,13 @@ def list_clauses(
 
 @router.get("/agreements/{agreement_id}")
 def get_agreement(agreement_id: str, state: ServerState = Depends(get_state)) -> dict[str, Any]:
-    clause = state.storage.get_clause_by_agreement(agreement_id)
-    if not clause:
-        raise HTTPException(status_code=404, detail="clause not found")
-
-    receipts = state.storage.list_receipts(agreement_id=agreement_id)
-    anchor = state.storage.get_anchor(agreement_id)
-
-    chain_ok = True
-    chain_errors: list[str] = []
-    if receipts:
-        chain = verify_receipt_chain(receipts)
-        chain_ok = chain.ok
-        chain_errors = chain.errors
-
-    expected_root = None
-    root_match = None
-    if anchor:
-        expected_root = compute_anchor_root([r["receiptHash"] for r in receipts]) if receipts else "0x0"
-        root_match = expected_root == anchor["rootHash"]
-
-    return {
-        "agreementId": agreement_id,
-        "clause": clause,
-        "receipts": receipts,
-        "receiptCount": len(receipts),
-        "anchor": anchor,
-        "receiptChain": {
-            "valid": chain_ok,
-            "errors": chain_errors,
-        },
-        "root": {
-            "expected": expected_root,
-            "anchored": anchor["rootHash"] if anchor else None,
-            "matched": root_match,
-        },
-    }
+    return _agreement_snapshot(agreement_id, state)
 
 
 @router.get("/agreements/{agreement_id}/export")
 def export_agreement(agreement_id: str, state: ServerState = Depends(get_state)) -> dict[str, Any]:
     """Return a complete evidence bundle suitable for audit or download."""
-    clause = state.storage.get_clause_by_agreement(agreement_id)
-    if not clause:
-        raise HTTPException(status_code=404, detail="clause not found")
-
-    receipts = state.storage.list_receipts(agreement_id=agreement_id)
-    anchor = state.storage.get_anchor(agreement_id)
-
-    chain_ok = True
-    chain_errors: list[str] = []
-    if receipts:
-        chain = verify_receipt_chain(receipts)
-        chain_ok = chain.ok
-        chain_errors = chain.errors
-
-    expected_root = None
-    root_match = None
-    if anchor:
-        expected_root = compute_anchor_root([r["receiptHash"] for r in receipts]) if receipts else "0x0"
-        root_match = expected_root == anchor["rootHash"]
-
-    return {
-        "schemaVersion": "1.0.0",
-        "exportType": "evidence_bundle",
-        "agreementId": agreement_id,
-        "clause": clause,
-        "receipts": receipts,
-        "receiptCount": len(receipts),
-        "anchor": anchor,
-        "receiptChain": {
-            "valid": chain_ok,
-            "errors": chain_errors,
-            "receiptHashes": [r["receiptHash"] for r in receipts],
-        },
-        "root": {
-            "expected": expected_root,
-            "anchored": anchor["rootHash"] if anchor else None,
-            "matched": root_match,
-        },
-        "integrity": {
-            "clauseHash": clause.get("clauseHash"),
-            "clauseHashValid": clause.get("clauseHash") == compute_clause_hash(clause) if clause.get("clauseHash") else None,
-            "chainValid": chain_ok,
-            "rootAnchored": anchor is not None,
-            "rootCommittedOnChain": bool(anchor and anchor.get("txHash")),
-            "rootMatched": root_match,
-        },
-    }
+    return _export_payload(agreement_id, state)
 
 
 @router.get("/agreements")
@@ -290,6 +283,9 @@ def anchor_receipts(payload: AnchorRequest, state: ServerState = Depends(get_sta
                 "rootHash": existing_anchor["rootHash"],
                 "txHash": existing_anchor["txHash"],
                 "anchorMode": existing_anchor.get("anchorMode", "onchain"),
+                "bundleCid": existing_anchor.get("bundleCid"),
+                "bundleHash": existing_anchor.get("bundleHash"),
+                "bundleUri": existing_anchor.get("bundleUri"),
                 "receiptIds": existing_anchor["receiptIds"],
                 "idempotent": True,
             }
@@ -307,18 +303,54 @@ def anchor_receipts(payload: AnchorRequest, state: ServerState = Depends(get_sta
     sanity = state.escrow.contract_sanity()
     tx_hash: str | None = None
     anchor_mode = "onchain"
+    bundle_cid: str | None = None
+    bundle_hash: str | None = None
+    bundle_uri: str | None = None
+    pin_mode: str | None = None
+
+    should_pin_bundle = sanity.get("deploymentMode") == "split" or os.environ.get("IPFS_AUTO_PIN", "0") == "1"
+    if should_pin_bundle:
+        bundle = _export_payload(payload.agreementId, state)
+        stored = state.bundle_store.pin_json(f"agreement-{payload.agreementId}", bundle)
+        bundle_cid = stored.cid
+        bundle_hash = stored.bundle_hash
+        bundle_uri = stored.uri
+        pin_mode = stored.mode
+
     if sanity.get("deploymentMode") == "split" and not capabilities.get("commitEvidenceHash", False):
         anchor_mode = "offchain_bundle"
     else:
-        tx = state.escrow.commit_evidence_hash(payload.agreementId, root_hash)
+        if should_pin_bundle and bundle_hash and bundle_cid:
+            anchor_mode = "ipfs_onchain"
+        tx = state.escrow.commit_evidence_hash(
+            payload.agreementId,
+            root_hash,
+            bundle_hash=bundle_hash,
+            bundle_cid=bundle_uri or bundle_cid,
+        )
         tx_hash = tx.tx_hash
-    state.storage.store_anchor(payload.agreementId, root_hash, tx_hash, receipt_ids)
+    state.storage.store_anchor(
+        payload.agreementId,
+        root_hash,
+        tx_hash,
+        receipt_ids,
+        metadata={
+            "anchorMode": anchor_mode,
+            "bundleCid": bundle_cid,
+            "bundleHash": bundle_hash,
+            "bundleUri": bundle_uri,
+            "pinMode": pin_mode,
+        },
+    )
 
     return {
         "agreementId": payload.agreementId,
         "rootHash": root_hash,
         "txHash": tx_hash,
         "anchorMode": anchor_mode,
+        "bundleCid": bundle_cid,
+        "bundleHash": bundle_hash,
+        "bundleUri": bundle_uri,
         "receiptIds": receipt_ids,
     }
 

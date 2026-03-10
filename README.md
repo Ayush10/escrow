@@ -31,6 +31,7 @@ flowchart LR
 - `apps/judge_service`: dispute watcher, verification, deterministic/LLM verdicting, on-chain ruling.
 - `apps/reputation_service`: event watcher + reputation API.
 - `apps/demo_runner`: end-to-end orchestrator.
+- `apps/protocol_mcp`: stdio MCP server so agents can create agreements, anchor evidence, file disputes, and process cases through tool calls.
 - `console`: canonical operator dashboard and demo UI.
 - `contracts`: legacy monolithic Hardhat contract, ABI, and deploy tooling used by the current Python runtime.
 - `foundry`: new split contract workspace (`Vault`, `JudgeRegistry`, `Court`) for the hierarchical v3 court system.
@@ -90,16 +91,23 @@ To exercise the new Foundry v3 contract layout instead, set:
 - `ESCROW_COURT_ADDRESS=...`
 - `ESCROW_VAULT_ADDRESS=...`
 - `ESCROW_JUDGE_REGISTRY_ADDRESS=...`
+- `ESCROW_EVIDENCE_ANCHOR_ADDRESS=...`
+- Optional IPFS env:
+  - `IPFS_MODE=local|pinata|auto`
+  - `IPFS_LOCAL_STORE_PATH=./data/ipfs`
+  - `IPFS_PINATA_JWT=...`
+  - `IPFS_GATEWAY_BASE_URL=...`
 
 Current split-mode behavior on `main`:
 
 - consumer flows can create and accept `Court` contracts and carry the Court contract ID into disputes
 - judge service can resolve the assigned judge per dispute instead of relying on one global judge address
-- evidence service stores the receipt Merkle root off-chain when `commitEvidenceHash()` does not exist, then submits that root during dispute evidence handling
+- evidence service can build and pin canonical evidence bundles, then anchor the Merkle root plus bundle hash through `EvidenceAnchor` when configured
+- `apps/protocol_mcp` exposes the protocol as MCP tools over stdio for agent runtimes
 
 Current split-mode limitation:
 
-- there is still no dedicated on-chain anchor contract for receipt roots, so `/anchor` returns `anchorMode=offchain_bundle` and `txHash=null` in split mode
+- if `ESCROW_EVIDENCE_ANCHOR_ADDRESS` is not configured, `/anchor` falls back to `anchorMode=offchain_bundle`
 
 ### GOAT x402 merchant credentials (very important)
 
@@ -161,6 +169,7 @@ bash ./scripts/run_module.sh provider_api.server
 bash ./scripts/run_module.sh judge_service.server
 bash ./scripts/run_module.sh reputation_service.api
 bash ./scripts/run_module.sh demo_runner.server
+uv run python -m protocol_mcp.server
 ```
 
 Optional pnpm wrappers:
@@ -171,6 +180,7 @@ pnpm dev:provider
 pnpm dev:judge
 pnpm dev:reputation
 pnpm dev:runner
+pnpm dev:mcp
 ```
 
 Push a transfer into GOAT dashboard `Agent ↔ Agent Payments`:
